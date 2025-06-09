@@ -1,3 +1,5 @@
+# Reason
+1. oxc define
 # Diff
 ## /out.js
 ### esbuild
@@ -16,28 +18,18 @@ console.log(
 ```
 ### rolldown
 ```js
-
 //#region entry.js
-console.log(
-	// These should be fully substituted
-	import.meta,
-	2,
-	3,
-	// Should just substitute "import.meta.foo"
-	2 .baz,
-	3
-);
+console.log(1, 2, 3, 2 .baz, 3);
 
 //#endregion
-
 ```
 ### diff
 ```diff
 ===================================================================
 --- esbuild	/out.js
-+++ rolldown	entry_js.mjs
++++ rolldown	entry.js
 @@ -1,1 +1,1 @@
 -console.log(1, 2, 3, (2).baz, (1).bar);
-+console.log(import.meta, 2, 3, (2).baz, 3);
++console.log(1, 2, 3, (2).baz, 3);
 
 ```

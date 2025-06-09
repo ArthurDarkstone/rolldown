@@ -3,10 +3,9 @@ source: crates/rolldown_testing/src/integration_test.rs
 ---
 # Assets
 
-## circular-import-entry_js.mjs
+## circular-import-entry.js
 
 ```js
-
 //#region circular-import-cycle.js
 console.log(bar());
 
@@ -19,10 +18,9 @@ function bar() {
 
 //#endregion
 ```
-## circular-re-export-entry_js.mjs
+## circular-re-export-entry.js
 
 ```js
-
 //#region circular-re-export-cycle.js
 const baz = 0;
 console.log(bar());
@@ -40,10 +38,9 @@ console.log(baz);
 
 //#endregion
 ```
-## circular-re-export-star-entry_js.mjs
+## circular-re-export-star-entry.js
 
 ```js
-
 //#region circular-re-export-star-cycle.js
 console.log(bar());
 
@@ -56,10 +53,9 @@ function bar() {
 
 //#endregion
 ```
-## cross-module-entry_js.mjs
+## cross-module-entry.js
 
 ```js
-
 //#region cross-module-constants.js
 const x_REMOVE = 1;
 foo();
@@ -74,10 +70,9 @@ console.log(x_REMOVE, y_keep);
 
 //#endregion
 ```
-## exported-entry_js.mjs
+## exported-entry.js
 
 ```js
-
 //#region exported-entry.js
 const x_REMOVE = 1;
 const y_keep = 2;
@@ -86,10 +81,9 @@ console.log(x_REMOVE, y_keep);
 //#endregion
 export { y_keep };
 ```
-## non-circular-export-entry_js.mjs
+## non-circular-export-entry.js
 
 ```js
-
 //#region non-circular-export-constants.js
 const foo = 123;
 function bar() {
@@ -102,10 +96,9 @@ console.log(foo, bar());
 
 //#endregion
 ```
-## print-shorthand-entry_js.mjs
+## print-shorthand-entry.js
 
 ```js
-
 //#region print-shorthand-constants.js
 const foo = 123;
 const _bar = -321;
@@ -119,20 +112,18 @@ console.log({
 
 //#endregion
 ```
-## re-exported-2-entry_js.mjs
+## re-exported-2-entry.js
 
 ```js
-
 //#region re-exported-2-constants.js
 const y_keep = 2;
 
 //#endregion
 export { y_keep };
 ```
-## re-exported-entry_js.mjs
+## re-exported-entry.js
 
 ```js
-
 //#region re-exported-constants.js
 const x_REMOVE = 1;
 const y_keep = 2;
@@ -144,10 +135,9 @@ console.log(x_REMOVE, y_keep);
 //#endregion
 export { y_keep };
 ```
-## re-exported-star-entry_js.mjs
+## re-exported-star-entry.js
 
 ```js
-
 //#region re-exported-star-constants.js
 const x_keep = 1;
 const y_keep = 2;

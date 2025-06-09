@@ -3,14 +3,16 @@ source: crates/rolldown_testing/src/integration_test.rs
 ---
 # Assets
 
-## main.mjs
+## main.js
 
 ```js
-import * as fs from "node:fs";
+import { createRequire } from "node:module";
+import * as fs from "fs";
 import * as nodeFs from "node:fs";
 
+
 //#region main.js
-console.log(fs, nodeFs, require("node:path"), require("node:path"));
+console.log(fs, nodeFs, __require("path"), __require("node:path"));
 
 //#endregion
 ```

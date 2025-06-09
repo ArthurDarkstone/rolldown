@@ -3,10 +3,9 @@ source: crates/rolldown_testing/src/integration_test.rs
 ---
 # Assets
 
-## a_js.mjs
+## a.js
 
 ```js
-
 //#region a.js
 function a_default(one, two, three, four) {
 	return "the argument names must be the same";
@@ -15,10 +14,9 @@ function a_default(one, two, three, four) {
 //#endregion
 export { a_default as default };
 ```
-## b_js.mjs
+## b.js
 
 ```js
-
 //#region b.js
 function b_default(one, two, three, four) {
 	return "the argument names must be the same";

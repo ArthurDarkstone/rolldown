@@ -3,12 +3,11 @@ source: crates/rolldown_testing/src/integration_test.rs
 ---
 # Assets
 
-## entry_js.mjs
+## entry.js
 
 ```js
-
 //#region data.json
-const some = "data";
+var some = "data";
 var data_default = { some };
 
 //#endregion

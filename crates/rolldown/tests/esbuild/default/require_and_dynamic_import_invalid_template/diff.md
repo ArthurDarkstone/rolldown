@@ -1,3 +1,5 @@
+# Reason
+1. not support invalid template
 # Diff
 ## /out.js
 ### esbuild
@@ -55,11 +57,11 @@ export default require_entry();
 ```js
 
 //#region entry.js
-require(tag`./b`);
-require(`./${b}`);
+__require(tag`./b`);
+__require(`./${b}`);
 try {
-	require(tag`./b`);
-	require(`./${b}`);
+	__require(tag`./b`);
+	__require(`./${b}`);
 } catch {}
 (async () => {
 	import(tag`./b`);
@@ -75,13 +77,12 @@ try {
 })();
 
 //#endregion
-
 ```
 ### diff
 ```diff
 ===================================================================
 --- esbuild	/out.js
-+++ rolldown	entry_js.mjs
++++ rolldown	entry.js
 @@ -1,41 +1,18 @@
 -var globRequire;
 -var init_ = __esm({
@@ -124,11 +125,11 @@ try {
 -    }
 -});
 -export default require_entry();
-+require(tag`./b`);
-+require(`./${b}`);
++__require(tag`./b`);
++__require(`./${b}`);
 +try {
-+    require(tag`./b`);
-+    require(`./${b}`);
++    __require(tag`./b`);
++    __require(`./${b}`);
 +} catch {}
 +(async () => {
 +    import(tag`./b`);

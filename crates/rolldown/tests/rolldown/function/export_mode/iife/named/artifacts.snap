@@ -3,18 +3,17 @@ source: crates/rolldown_testing/src/integration_test.rs
 ---
 # Assets
 
-## main.mjs
+## main.js
 
 ```js
 var module = (function(exports) {
 
-"use strict";
 Object.defineProperty(exports, '__esModule', { value: true });
 
 
 //#region mod.js
-var named_mod_exports = {};
-__export(named_mod_exports, {
+var named_exports = {};
+__export(named_exports, {
 	add: () => add,
 	subtract: () => subtract
 });
@@ -32,11 +31,11 @@ function aaa() {
 }
 
 //#endregion
-exports.aaa = aaa
+exports.aaa = aaa;
 Object.defineProperty(exports, 'default', {
   enumerable: true,
   get: function () {
-    return named_mod_exports;
+    return named_exports;
   }
 });
 return exports;

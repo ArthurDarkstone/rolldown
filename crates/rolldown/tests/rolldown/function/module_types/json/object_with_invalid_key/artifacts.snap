@@ -1,20 +1,21 @@
 ---
 source: crates/rolldown_testing/src/integration_test.rs
+snapshot_kind: text
 ---
 # Assets
 
-## main.mjs
+## main.js
 
 ```js
-import { default as assert } from "node:assert";
+import assert from "node:assert";
 
 //#region foo.json
-const key_0 = 1;
-var foo_default = { "😈": key_0 };
+var __ = 1;
+var foo_default = { "😈": __ };
 
 //#endregion
 //#region main.js
-assert.deepStrictEqual(foo_default, { "😈": key_0 });
+assert.deepStrictEqual(foo_default, { "😈": __ });
 
 //#endregion
 ```

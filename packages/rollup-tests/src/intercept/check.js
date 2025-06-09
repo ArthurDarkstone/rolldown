@@ -1,17 +1,6 @@
-const { loadFailedTests, calcTestId, loadIgnoredTests } = require('./utils')
+const { loadFailedTests, calcTestId, shouldIgnoredTest, status } = require('./utils')
 const expectedStatus = require('../status.json');
 const alreadyFailedTests = new Set(loadFailedTests())
-
-const ignoreTests = loadIgnoredTests()
-
-const status = {
-  // total: 0,
-  failed: 0,
-  skipFailed: 0,
-  // ignored: 0,
-  skipped: 0,
-  passed: 0,
-}
 
 /**
  * @type {Set<string>}
@@ -25,7 +14,7 @@ beforeEach(function skipAlreadyFiledTests() {
   // status.total += 1
   const id = calcTestId(this.currentTest)
 
-  if (ignoreTests.has(id)) {
+  if (shouldIgnoredTest(id)) {
     // status.ignored += 1
     this.currentTest?.skip()
   }

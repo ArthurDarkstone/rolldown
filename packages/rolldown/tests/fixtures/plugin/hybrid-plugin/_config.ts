@@ -1,8 +1,8 @@
 import { expect } from 'vitest'
 import path from 'node:path'
-import { defineTest } from '@tests'
+import { defineTest } from 'rolldown-tests'
 import { loadFallbackPlugin } from 'rolldown/experimental'
-import { RolldownPlugin } from '@src/plugin'
+import { RolldownPlugin } from 'rolldown'
 
 const entry = path.join(__dirname, './main.js')
 

@@ -1,5 +1,18 @@
-import * as diff from 'diff'
-import { rewriteEsbuild, rewriteRolldown } from './rewrite.js'
+import * as diff from 'diff';
+import * as fs from 'node:fs';
+import * as path from 'node:path';
+import { isRegExp } from 'node:util/types';
+import {
+  defaultRewriteConfig,
+  rewriteEsbuild,
+  rewriteRolldown,
+} from './rewrite.js';
+import { DebugConfig } from './types';
+
+type Resolver = (
+  esbuildFilename: string,
+  rolldownFilename: string,
+) => boolean | Record<string, string>;
 /**
  * our filename generate logic is not the same as esbuild
  * so hardcode some filename remapping
@@ -7,61 +20,102 @@ import { rewriteEsbuild, rewriteRolldown } from './rewrite.js'
 function defaultResolveFunction(
   esbuildFilename: string,
   rolldownFilename: string,
+  resolver?: Resolver,
 ) {
-  if (esbuildFilename === '/out.js' && /entry_js\.*/.test(rolldownFilename)) {
-    return true
+  if (
+    typeof resolver === 'function' &&
+    resolver(esbuildFilename, rolldownFilename)
+  ) {
+    return true;
+  }
+  if (resolver && typeof resolver === 'object') {
+    if (
+      isRegExp(resolver[esbuildFilename]) &&
+      (resolver[esbuildFilename] as RegExp).test(rolldownFilename)
+    ) {
+      return true;
+    }
+    if (resolver[esbuildFilename] == rolldownFilename) {
+      return true;
+    }
+  }
+
+  if (esbuildFilename === '/out.js' && /entry\.js/.test(rolldownFilename)) {
+    return true;
+  }
+  let extractedCaseName = /\/out\/(.*)/.exec(esbuildFilename)?.[1];
+  if (extractedCaseName === rolldownFilename) {
+    return true;
   }
 }
-/**
- * TODO: custom resolve
- */
-export function diffCase(
+
+export async function diffCase(
   esbuildSnap: {
-    name: string
-    sourceList: Array<{ name: string; content: string }>
+    name: string;
+    sourceList: Array<{ name: string; content: string }>;
   },
   rolldownSnap: Array<{ filename: string; content: string }> | undefined,
-  debug?: boolean,
-):
+  caseDir: string,
+  debugConfig?: DebugConfig,
+): Promise<
+  | {
+    esbuildName: string;
+    rolldownName: string;
+    esbuild: string;
+    rolldown: string;
+    diff: string;
+  }[]
   | 'bypass'
   | 'missing'
-  | Array<{
-      esbuildName: string
-      rolldownName: string
-      esbuild: string
-      rolldown: string
-      diff: string
-    }>
-  | 'same' {
+  | 'same'
+> {
   if (!rolldownSnap) {
-    return 'missing'
+    return 'missing';
   }
-  let diffList = []
+  let diffList = [];
   for (let esbuildSource of esbuildSnap.sourceList) {
+    let rewriteConfig: any = {};
+    let customResolver: Resolver | undefined;
+    let configPath = path.join(caseDir, 'diff.config.js');
+    if (fs.existsSync(configPath)) {
+      try {
+        const mod = (await import(configPath)).default;
+        rewriteConfig = mod.rewrite ?? {};
+        customResolver = mod.resolver;
+      } catch {}
+    }
     let matchedSource = rolldownSnap.find((rolldownSource) => {
-      if (defaultResolveFunction(esbuildSource.name, rolldownSource.filename)) {
-        return true
+      if (
+        defaultResolveFunction(
+          esbuildSource.name,
+          rolldownSource.filename,
+          customResolver,
+        )
+      ) {
+        return true;
       }
       return rolldownSnap.find((snap) => {
-        return snap.filename == esbuildSource.name
-      })
-    }) ?? { content: '', filename: '' }
-    let esbuildContent = esbuildSource.content
-    let rolldownContent = matchedSource.content
+        return snap.filename == esbuildSource.name;
+      });
+    }) ?? { content: '', filename: '' };
+    let esbuildContent = esbuildSource.content;
+    let rolldownContent = matchedSource.content;
     try {
-      esbuildContent = rewriteEsbuild(esbuildSource.content)
-      rolldownContent = rewriteRolldown(matchedSource.content)
+      esbuildContent = rewriteEsbuild(esbuildSource.content);
+      rolldownContent = rewriteRolldown(matchedSource.content, {
+        ...defaultRewriteConfig,
+        ...rewriteConfig,
+      });
     } catch (err) {
-      console.error(esbuildSnap.name)
-      console.error(esbuildSource.name)
+      console.error(esbuildSnap.name);
+      console.error(esbuildSource.name);
       if (
-        debug &&
+        debugConfig?.debug &&
         (esbuildSource.name.endsWith('.mjs') ||
           esbuildSource.name.endsWith('.js'))
       ) {
-        console.error(`err: `, err)
+        console.error(`err: `, err);
       }
-      continue
     }
 
     if (matchedSource.content !== esbuildSource.content) {
@@ -72,22 +126,22 @@ export function diffCase(
         rolldownContent,
         esbuildSource.name,
         matchedSource.filename,
-      )
-      let formatDiff = ''
+      );
+      let formatDiff = '';
       if (structuredPatch.hunks.length > 0) {
-        formatDiff = diff.formatPatch(structuredPatch)
+        formatDiff = diff.formatPatch(structuredPatch);
         diffList.push({
           esbuildName: esbuildSource.name,
           rolldownName: matchedSource.filename,
           esbuild: esbuildSource.content,
           rolldown: matchedSource.content,
           diff: formatDiff,
-        })
+        });
       }
     }
   }
   if (diffList.length === 0) {
-    return 'same'
+    return 'same';
   }
-  return diffList
+  return diffList;
 }

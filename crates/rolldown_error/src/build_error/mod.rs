@@ -1,6 +1,9 @@
 pub mod error_constructors;
 pub mod severity;
-use std::fmt::Display;
+use std::{
+  fmt::Display,
+  ops::{Deref, DerefMut},
+};
 
 use crate::{
   diagnostic::Diagnostic, events::BuildEvent, types::diagnostic_options::DiagnosticOptions,
@@ -12,12 +15,14 @@ use self::severity::Severity;
 pub struct BuildDiagnostic {
   inner: Box<dyn BuildEvent>,
   source: Option<Box<dyn std::error::Error + 'static + Send + Sync>>,
+  #[cfg(feature = "napi")]
+  napi_error: Option<napi::Error>,
   severity: Severity,
 }
 
 fn _assert_build_error_send_sync() {
-  fn _assert_send_sync<T: Send + Sync>() {}
-  _assert_send_sync::<BuildDiagnostic>();
+  fn assert_send_sync<T: Send + Sync>() {}
+  assert_send_sync::<BuildDiagnostic>();
 }
 
 impl Display for BuildDiagnostic {
@@ -46,21 +51,43 @@ impl BuildDiagnostic {
     self
   }
 
-  pub fn into_diagnostic(self) -> Diagnostic {
-    self.into_diagnostic_with(&DiagnosticOptions::default())
+  pub fn to_diagnostic(&self) -> Diagnostic {
+    self.to_diagnostic_with(&DiagnosticOptions::default())
   }
 
-  pub fn into_diagnostic_with(self, opts: &DiagnosticOptions) -> Diagnostic {
+  pub fn to_diagnostic_with(&self, opts: &DiagnosticOptions) -> Diagnostic {
     let mut diagnostic =
       Diagnostic::new(self.kind().to_string(), self.inner.message(opts), self.severity);
     self.inner.on_diagnostic(&mut diagnostic, opts);
     diagnostic
   }
 
+  #[cfg(feature = "napi")]
+  pub fn downcast_napi_error(&self) -> Result<&napi::Error, &Self> {
+    match &self.napi_error {
+      Some(napi_error) => Ok(napi_error),
+      None => Err(self),
+    }
+  }
+
+  pub fn id(&self) -> Option<String> {
+    self.inner.id()
+  }
+
+  pub fn exporter(&self) -> Option<String> {
+    self.inner.exporter()
+  }
+
   // --- private
 
   fn new_inner(inner: impl Into<Box<dyn BuildEvent>>) -> Self {
-    Self { inner: inner.into(), source: None, severity: Severity::Error }
+    Self {
+      inner: inner.into(),
+      source: None,
+      #[cfg(feature = "napi")]
+      napi_error: None,
+      severity: Severity::Error,
+    }
   }
 }
 
@@ -73,8 +100,57 @@ impl From<std::io::Error> for BuildDiagnostic {
 #[cfg(feature = "napi")]
 impl From<napi::Error> for BuildDiagnostic {
   fn from(e: napi::Error) -> Self {
-    BuildDiagnostic::napi_error(e.status.to_string(), e.reason)
+    BuildDiagnostic::napi_error(e)
   }
 }
 
-pub type BuildResult<T> = std::result::Result<T, BuildDiagnostic>;
+impl From<BuildDiagnostic> for BatchedBuildDiagnostic {
+  fn from(v: BuildDiagnostic) -> Self {
+    Self::new(vec![v])
+  }
+}
+
+impl From<anyhow::Error> for BatchedBuildDiagnostic {
+  fn from(err: anyhow::Error) -> Self {
+    Self::new(vec![BuildDiagnostic::unhandleable_error(err)])
+  }
+}
+
+impl From<Vec<BuildDiagnostic>> for BatchedBuildDiagnostic {
+  fn from(v: Vec<BuildDiagnostic>) -> Self {
+    Self::new(v)
+  }
+}
+
+impl From<anyhow::Error> for BuildDiagnostic {
+  fn from(err: anyhow::Error) -> Self {
+    BuildDiagnostic::unhandleable_error(err)
+  }
+}
+
+#[derive(Debug, Default)]
+pub struct BatchedBuildDiagnostic(Vec<BuildDiagnostic>);
+
+impl BatchedBuildDiagnostic {
+  pub fn new(vec: Vec<BuildDiagnostic>) -> Self {
+    Self(vec)
+  }
+
+  pub fn into_vec(self) -> Vec<BuildDiagnostic> {
+    self.0
+  }
+}
+
+impl Deref for BatchedBuildDiagnostic {
+  type Target = Vec<BuildDiagnostic>;
+
+  fn deref(&self) -> &Self::Target {
+    &self.0
+  }
+}
+
+impl DerefMut for BatchedBuildDiagnostic {
+  fn deref_mut(&mut self) -> &mut Self::Target {
+    &mut self.0
+  }
+}

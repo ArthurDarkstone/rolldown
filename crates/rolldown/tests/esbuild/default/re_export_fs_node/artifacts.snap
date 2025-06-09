@@ -1,23 +1,36 @@
 ---
 source: crates/rolldown_testing/src/integration_test.rs
+snapshot_kind: text
 ---
 # warnings
 
 ## UNRESOLVED_IMPORT
 
 ```text
-[UNRESOLVED_IMPORT] Warning: "fs" is imported by "foo.js", but could not be resolved – treating it as an external dependency.
+[UNRESOLVED_IMPORT] Warning: Could not resolve 'fs' in foo.js
+   ╭─[ foo.js:1:21 ]
+   │
+ 1 │ export * as fs from 'fs'
+   │                     ──┬─  
+   │                       ╰─── Module not found, treating it as an external dependency
+───╯
 
 ```
 ## UNRESOLVED_IMPORT
 
 ```text
-[UNRESOLVED_IMPORT] Warning: "fs" is imported by "foo.js", but could not be resolved – treating it as an external dependency.
+[UNRESOLVED_IMPORT] Warning: Could not resolve 'fs' in foo.js
+   ╭─[ foo.js:2:28 ]
+   │
+ 2 │ export {readFileSync} from 'fs'
+   │                            ──┬─  
+   │                              ╰─── Module not found, treating it as an external dependency
+───╯
 
 ```
 # Assets
 
-## entry_js.mjs
+## entry.js
 
 ```js
 import * as fs from "fs";

@@ -3,18 +3,18 @@ source: crates/rolldown_testing/src/integration_test.rs
 ---
 # Assets
 
-## entry.mjs
+## entry.js
 
 ```js
-import { default as assert } from "node:assert";
+import assert from "node:assert";
 
 //#region entry.js
-class Foo {
+var Foo = class Foo {
 	static foo = new Foo();
-}
+};
 let foo = Foo.foo;
-assert(foo instanceof Foo);
-class Bar {}
+assert(foo instanceof Foo, true);
+var Bar = class {};
 let bar = 123;
 
 //#endregion

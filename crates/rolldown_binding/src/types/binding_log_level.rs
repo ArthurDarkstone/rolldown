@@ -1,12 +1,12 @@
+use napi_derive::napi;
 use std::fmt::{self, Display, Formatter};
 
-use napi_derive::napi;
-
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone, Copy, Default)]
 #[napi]
 pub enum BindingLogLevel {
   Silent,
   Warn,
+  #[default]
   Info,
   Debug,
 }
@@ -30,6 +30,17 @@ impl Display for BindingLogLevel {
       Self::Warn => write!(f, "warn"),
       Self::Info => write!(f, "info"),
       Self::Debug => write!(f, "debug"),
+    }
+  }
+}
+
+impl From<BindingLogLevel> for rolldown_common::LogLevel {
+  fn from(value: BindingLogLevel) -> Self {
+    match value {
+      BindingLogLevel::Silent => Self::Silent,
+      BindingLogLevel::Warn => Self::Warn,
+      BindingLogLevel::Info => Self::Info,
+      BindingLogLevel::Debug => Self::Debug,
     }
   }
 }

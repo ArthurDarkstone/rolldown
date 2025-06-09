@@ -1,25 +1,26 @@
 ---
 source: crates/rolldown_testing/src/integration_test.rs
+snapshot_kind: text
 ---
 # Assets
 
-## main.mjs
+## main.js
 
 ```js
-import { default as assert } from "node:assert";
+import assert from "node:assert";
 
 
 //#region 1aaa.js
-var _aaa_exports = {};
-__export(_aaa_exports, { default: () => _aaa_default });
+var _1aaa_exports = {};
+__export(_1aaa_exports, { default: () => _1aaa_default });
 const a$1 = "shared.js";
-var _aaa_default = a$1;
+var _1aaa_default = a$1;
 
 //#endregion
 //#region main.js
 const a = "index.js";
 assert.equal(a, "index.js");
-console.log(_aaa_exports);
+console.log(_1aaa_exports);
 
 //#endregion
 ```

@@ -3,10 +3,9 @@ source: crates/rolldown_testing/src/integration_test.rs
 ---
 # Assets
 
-## identity-async_js.mjs
+## identity-async.js
 
 ```js
-
 //#region identity-async.js
 async function keep(x) {
 	return x;
@@ -17,10 +16,9 @@ keep(1);
 
 //#endregion
 ```
-## identity-cross-module_js.mjs
+## identity-cross-module.js
 
 ```js
-
 //#region identity-cross-module-def.js
 function DROP(x) {
 	return x;
@@ -34,10 +32,9 @@ DROP(1);
 
 //#endregion
 ```
-## identity-first_js.mjs
+## identity-first.js
 
 ```js
-
 //#region identity-first.js
 function keep(x) {
 	return x;
@@ -51,10 +48,9 @@ keep(1);
 
 //#endregion
 ```
-## identity-generator_js.mjs
+## identity-generator.js
 
 ```js
-
 //#region identity-generator.js
 function* keep(x) {
 	return x;
@@ -65,10 +61,9 @@ keep(1);
 
 //#endregion
 ```
-## identity-last_js.mjs
+## identity-last.js
 
 ```js
-
 //#region identity-last.js
 function DROP(x) {
 	return [x];
@@ -82,10 +77,9 @@ DROP(1);
 
 //#endregion
 ```
-## identity-no-args_js.mjs
+## identity-no-args.js
 
 ```js
-
 //#region identity-no-args.js
 function keep(x) {
 	return x;
@@ -95,10 +89,9 @@ keep();
 
 //#endregion
 ```
-## identity-two-args_js.mjs
+## identity-two-args.js
 
 ```js
-
 //#region identity-two-args.js
 function keep(x) {
 	return x;
@@ -108,10 +101,9 @@ keep(1, 2);
 
 //#endregion
 ```
-## identity_js.mjs
+## identity.js
 
 ```js
-
 //#region identity.js
 function DROP(x) {
 	return x;
@@ -122,10 +114,9 @@ DROP(1);
 
 //#endregion
 ```
-## not-identity-array_js.mjs
+## not-identity-array.js
 
 ```js
-
 //#region not-identity-array.js
 function keep([x]) {
 	return x;
@@ -136,10 +127,9 @@ keep(1);
 
 //#endregion
 ```
-## not-identity-default_js.mjs
+## not-identity-default.js
 
 ```js
-
 //#region not-identity-default.js
 function keep(x = foo()) {
 	return x;
@@ -150,10 +140,9 @@ keep(1);
 
 //#endregion
 ```
-## not-identity-object_js.mjs
+## not-identity-object.js
 
 ```js
-
 //#region not-identity-object.js
 function keep({ x }) {
 	return x;
@@ -164,10 +153,9 @@ keep(1);
 
 //#endregion
 ```
-## not-identity-rest_js.mjs
+## not-identity-rest.js
 
 ```js
-
 //#region not-identity-rest.js
 function keep(...x) {
 	return x;
@@ -178,10 +166,9 @@ keep(1);
 
 //#endregion
 ```
-## not-identity-return_js.mjs
+## not-identity-return.js
 
 ```js
-
 //#region not-identity-return.js
 function keep(x) {
 	return [x];
@@ -192,10 +179,9 @@ keep(1);
 
 //#endregion
 ```
-## not-identity-two-args_js.mjs
+## not-identity-two-args.js
 
 ```js
-
 //#region not-identity-two-args.js
 function keep(x, y) {
 	return x;
@@ -206,10 +192,9 @@ keep(1);
 
 //#endregion
 ```
-## reassign-array_js.mjs
+## reassign-array.js
 
 ```js
-
 //#region reassign-array.js
 function keep(x) {
 	return x;
@@ -221,10 +206,9 @@ keep(1);
 
 //#endregion
 ```
-## reassign-div_js.mjs
+## reassign-div.js
 
 ```js
-
 //#region reassign-div.js
 function keep(x) {
 	return x;
@@ -236,10 +220,9 @@ keep(1);
 
 //#endregion
 ```
-## reassign-inc_js.mjs
+## reassign-inc.js
 
 ```js
-
 //#region reassign-inc.js
 function keep(x) {
 	return x;
@@ -251,10 +234,9 @@ keep(1);
 
 //#endregion
 ```
-## reassign-object_js.mjs
+## reassign-object.js
 
 ```js
-
 //#region reassign-object.js
 function keep(x) {
 	return x;
@@ -266,10 +248,9 @@ keep(1);
 
 //#endregion
 ```
-## reassign_js.mjs
+## reassign.js
 
 ```js
-
 //#region reassign.js
 function keep(x) {
 	return x;

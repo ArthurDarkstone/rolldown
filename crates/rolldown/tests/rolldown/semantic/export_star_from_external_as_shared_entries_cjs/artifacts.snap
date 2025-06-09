@@ -1,12 +1,15 @@
 ---
 source: crates/rolldown_testing/src/integration_test.rs
+snapshot_kind: text
 ---
 # Assets
 
-## entry.cjs
+## entry.js
 
 ```js
-"use strict";
+require('./main.js');
+
+
 var node_fs = require("node:fs");
 Object.keys(node_fs).forEach(function (k) {
   if (k !== 'default' && !Object.prototype.hasOwnProperty.call(exports, k)) Object.defineProperty(exports, k, {
@@ -14,13 +17,14 @@ Object.keys(node_fs).forEach(function (k) {
     get: function () { return node_fs[k]; }
   });
 });
-require('./main.cjs');
 
 ```
-## entry2.cjs
+## entry2.js
 
 ```js
-"use strict";
+require('./main.js');
+
+
 var node_fs = require("node:fs");
 Object.keys(node_fs).forEach(function (k) {
   if (k !== 'default' && !Object.prototype.hasOwnProperty.call(exports, k)) Object.defineProperty(exports, k, {
@@ -28,13 +32,10 @@ Object.keys(node_fs).forEach(function (k) {
     get: function () { return node_fs[k]; }
   });
 });
-require('./main.cjs');
 
 ```
-## main.cjs
+## main.js
 
 ```js
-"use strict";
-require("node:fs");
 
 ```

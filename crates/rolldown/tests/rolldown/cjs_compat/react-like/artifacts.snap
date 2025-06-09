@@ -1,0 +1,40 @@
+---
+source: crates/rolldown_testing/src/integration_test.rs
+---
+# Assets
+
+## main.js
+
+```js
+import assert from "node:assert";
+
+
+//#region react.js
+var require_react = __commonJS({ "react.js"(exports) {
+	exports.createReactElement = function() {
+		return "div";
+	};
+	exports.version = 1;
+} });
+
+//#endregion
+//#region commonjs.js
+var require_commonjs = __commonJS({ "commonjs.js"(exports, module) {
+	module.exports = require_react();
+} });
+
+//#endregion
+//#region commonjs2.js
+var require_commonjs2 = __commonJS({ "commonjs2.js"(exports, module) {
+	module.exports = require_react();
+} });
+
+//#endregion
+//#region main.js
+var import_commonjs = __toESM(require_commonjs());
+var import_commonjs2 = __toESM(require_commonjs2());
+assert.equal(import_commonjs.createReactElement(), "div");
+assert.equal(import_commonjs2.version.toString(), "1");
+
+//#endregion
+```

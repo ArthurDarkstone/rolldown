@@ -3,22 +3,35 @@ source: crates/rolldown_testing/src/integration_test.rs
 ---
 # Assets
 
-## entry_js.mjs
+## entry.js
 
 ```js
 
+const external_pkg = __toESM(require("external-pkg"));
+const external_pkg2 = __toESM(require("external-pkg2"));
+
+//#region replacement.js
+let replace = { test() {} };
+let replace2 = { test() {} };
+
+//#endregion
+//#region inject.js
+let obj = {};
+let sideEffects$1 = console.log("side effects");
+
+//#endregion
 //#region entry.js
 let sideEffects = console.log("this should be renamed");
 let collide = 123;
 console.log(obj.prop);
-console.log(obj.defined);
-console.log(injectedAndDefined);
-console.log(injected.and.defined);
-console.log(chain.prop.test);
-console.log(chain2.prop2.test);
+console.log("defined");
+console.log("should be used");
+console.log("should be used");
+console.log(replace.test);
+console.log(replace2.test);
 console.log(collide);
-console.log(re_export);
-console.log(re.export);
+console.log(external_pkg.re_export);
+console.log(external_pkg2.re.export);
 
 //#endregion
 ```

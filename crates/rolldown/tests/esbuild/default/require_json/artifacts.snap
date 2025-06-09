@@ -3,34 +3,22 @@ source: crates/rolldown_testing/src/integration_test.rs
 ---
 # Assets
 
-## entry_js.mjs
+## entry.js
 
 ```js
 
-
 //#region test.json
-var test_exports, a, b, c, test_default;
-var init_test = __esm({ "test.json"() {
-	test_exports = {};
-	__export(test_exports, {
-		a: () => a,
-		b: () => b,
-		c: () => c,
-		default: () => test_default
-	});
-	a = true;
-	b = 123;
-	c = [null];
-	test_default = {
-		a,
-		b,
-		c
+var require_test = __commonJS({ "test.json"(exports, module) {
+	module.exports = {
+		"a": true,
+		"b": 123,
+		"c": [null]
 	};
 } });
 
 //#endregion
 //#region entry.js
-console.log((init_test(), __toCommonJS(test_exports).default));
+console.log(require_test());
 
 //#endregion
 ```

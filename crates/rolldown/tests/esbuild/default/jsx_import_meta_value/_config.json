@@ -2,14 +2,21 @@
   "config": {
     "input": [
       {
-        "name": "factory_jsx",
+        "name": "factory",
         "import": "factory.jsx"
       },
       {
-        "name": "fragment_jsx",
+        "name": "fragment",
         "import": "fragment.jsx"
       }
-    ]
+    ],
+    "transform": {
+      "jsx": {
+        "pragma": "import.meta",
+        "pragmaFrag": "import.meta",
+        "runtime": "classic"
+      }
+    }
   },
   "expectExecuted": false
 }

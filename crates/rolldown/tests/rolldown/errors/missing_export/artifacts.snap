@@ -1,5 +1,6 @@
 ---
 source: crates/rolldown_testing/src/integration_test.rs
+snapshot_kind: text
 ---
 # Errors
 
@@ -7,7 +8,7 @@ source: crates/rolldown_testing/src/integration_test.rs
 
 ```text
 [MISSING_EXPORT] Error: "default" is not exported by "foo.js".
-   ╭─[main.js:4:8]
+   ╭─[ main.js:4:8 ]
    │
  4 │ import importedE from "./foo"
    │        ────┬────  
@@ -18,32 +19,8 @@ source: crates/rolldown_testing/src/integration_test.rs
 ## MISSING_EXPORT
 
 ```text
-[MISSING_EXPORT] Error: "importedC" is not exported by "foo.js".
-   ╭─[main.js:2:10]
-   │
- 2 │ export { importedC, importedD as d } from "./foo"
-   │          ────┬────  
-   │              ╰────── Missing export
-───╯
-
-```
-## MISSING_EXPORT
-
-```text
-[MISSING_EXPORT] Error: "importedD" is not exported by "foo.js".
-   ╭─[main.js:2:21]
-   │
- 2 │ export { importedC, importedD as d } from "./foo"
-   │                     ────┬────  
-   │                         ╰────── Missing export
-───╯
-
-```
-## MISSING_EXPORT
-
-```text
 [MISSING_EXPORT] Error: "default" is not exported by "foo.js".
-   ╭─[main.js:5:10]
+   ╭─[ main.js:5:10 ]
    │
  5 │ import { default as f } from "./foo"
    │          ───┬───  
@@ -55,7 +32,7 @@ source: crates/rolldown_testing/src/integration_test.rs
 
 ```text
 [MISSING_EXPORT] Error: "default" is not exported by "foo.js".
-   ╭─[main.js:6:10]
+   ╭─[ main.js:6:10 ]
    │
  6 │ export { default as g } from "./foo"
    │          ───┬───  
@@ -67,7 +44,7 @@ source: crates/rolldown_testing/src/integration_test.rs
 
 ```text
 [MISSING_EXPORT] Error: "importedA" is not exported by "foo.js".
-   ╭─[main.js:1:10]
+   ╭─[ main.js:1:10 ]
    │
  1 │ import { importedA, importedB as b } from "./foo"
    │          ────┬────  
@@ -79,18 +56,35 @@ source: crates/rolldown_testing/src/integration_test.rs
 
 ```text
 [MISSING_EXPORT] Error: "importedB" is not exported by "foo.js".
-   ╭─[main.js:1:21]
+   ╭─[ main.js:1:21 ]
    │
  1 │ import { importedA, importedB as b } from "./foo"
    │                     ────┬────  
    │                         ╰────── Missing export
 ───╯
 
-```# Assets
+```
+## MISSING_EXPORT
 
-## main.mjs
+```text
+[MISSING_EXPORT] Error: "importedC" is not exported by "foo.js".
+   ╭─[ main.js:2:10 ]
+   │
+ 2 │ export { importedC, importedD as d } from "./foo"
+   │          ────┬────  
+   │              ╰────── Missing export
+───╯
 
-```js
+```
+## MISSING_EXPORT
 
-export { d, g, importedC };
+```text
+[MISSING_EXPORT] Error: "importedD" is not exported by "foo.js".
+   ╭─[ main.js:2:21 ]
+   │
+ 2 │ export { importedC, importedD as d } from "./foo"
+   │                     ────┬────  
+   │                         ╰────── Missing export
+───╯
+
 ```

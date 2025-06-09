@@ -3,410 +3,409 @@ source: crates/rolldown_testing/src/integration_test.rs
 ---
 # Assets
 
-## e00_js.mjs
+## e00.js
 
 ```js
-import { shared_default } from "./shared.mjs";
+import { shared_default } from "./shared.js";
 
 //#region e00.js
 console.log(shared_default);
 
 //#endregion
 ```
-## e01_js.mjs
+## e01.js
 
 ```js
-import { shared_default } from "./shared.mjs";
+import { shared_default } from "./shared.js";
 
 //#region e01.js
 console.log(shared_default);
 
 //#endregion
 ```
-## e02_js.mjs
+## e02.js
 
 ```js
-import { shared_default } from "./shared.mjs";
+import { shared_default } from "./shared.js";
 
 //#region e02.js
 console.log(shared_default);
 
 //#endregion
 ```
-## e03_js.mjs
+## e03.js
 
 ```js
-import { shared_default } from "./shared.mjs";
+import { shared_default } from "./shared.js";
 
 //#region e03.js
 console.log(shared_default);
 
 //#endregion
 ```
-## e04_js.mjs
+## e04.js
 
 ```js
-import { shared_default } from "./shared.mjs";
+import { shared_default } from "./shared.js";
 
 //#region e04.js
 console.log(shared_default);
 
 //#endregion
 ```
-## e05_js.mjs
+## e05.js
 
 ```js
-import { shared_default } from "./shared.mjs";
+import { shared_default } from "./shared.js";
 
 //#region e05.js
 console.log(shared_default);
 
 //#endregion
 ```
-## e06_js.mjs
+## e06.js
 
 ```js
-import { shared_default } from "./shared.mjs";
+import { shared_default } from "./shared.js";
 
 //#region e06.js
 console.log(shared_default);
 
 //#endregion
 ```
-## e07_js.mjs
+## e07.js
 
 ```js
-import { shared_default } from "./shared.mjs";
+import { shared_default } from "./shared.js";
 
 //#region e07.js
 console.log(shared_default);
 
 //#endregion
 ```
-## e08_js.mjs
+## e08.js
 
 ```js
-import { shared_default } from "./shared.mjs";
+import { shared_default } from "./shared.js";
 
 //#region e08.js
 console.log(shared_default);
 
 //#endregion
 ```
-## e09_js.mjs
+## e09.js
 
 ```js
-import { shared_default } from "./shared.mjs";
+import { shared_default } from "./shared.js";
 
 //#region e09.js
 console.log(shared_default);
 
 //#endregion
 ```
-## e10_js.mjs
+## e10.js
 
 ```js
-import { shared_default } from "./shared.mjs";
+import { shared_default } from "./shared.js";
 
 //#region e10.js
 console.log(shared_default);
 
 //#endregion
 ```
-## e11_js.mjs
+## e11.js
 
 ```js
-import { shared_default } from "./shared.mjs";
+import { shared_default } from "./shared.js";
 
 //#region e11.js
 console.log(shared_default);
 
 //#endregion
 ```
-## e12_js.mjs
+## e12.js
 
 ```js
-import { shared_default } from "./shared.mjs";
+import { shared_default } from "./shared.js";
 
 //#region e12.js
 console.log(shared_default);
 
 //#endregion
 ```
-## e13_js.mjs
+## e13.js
 
 ```js
-import { shared_default } from "./shared.mjs";
+import { shared_default } from "./shared.js";
 
 //#region e13.js
 console.log(shared_default);
 
 //#endregion
 ```
-## e14_js.mjs
+## e14.js
 
 ```js
-import { shared_default } from "./shared.mjs";
+import { shared_default } from "./shared.js";
 
 //#region e14.js
 console.log(shared_default);
 
 //#endregion
 ```
-## e15_js.mjs
+## e15.js
 
 ```js
-import { shared_default } from "./shared.mjs";
+import { shared_default } from "./shared.js";
 
 //#region e15.js
 console.log(shared_default);
 
 //#endregion
 ```
-## e16_js.mjs
+## e16.js
 
 ```js
-import { shared_default } from "./shared.mjs";
+import { shared_default } from "./shared.js";
 
 //#region e16.js
 console.log(shared_default);
 
 //#endregion
 ```
-## e17_js.mjs
+## e17.js
 
 ```js
-import { shared_default } from "./shared.mjs";
+import { shared_default } from "./shared.js";
 
 //#region e17.js
 console.log(shared_default);
 
 //#endregion
 ```
-## e18_js.mjs
+## e18.js
 
 ```js
-import { shared_default } from "./shared.mjs";
+import { shared_default } from "./shared.js";
 
 //#region e18.js
 console.log(shared_default);
 
 //#endregion
 ```
-## e19_js.mjs
+## e19.js
 
 ```js
-import { shared_default } from "./shared.mjs";
+import { shared_default } from "./shared.js";
 
 //#region e19.js
 console.log(shared_default);
 
 //#endregion
 ```
-## e20_js.mjs
+## e20.js
 
 ```js
-import { shared_default } from "./shared.mjs";
+import { shared_default } from "./shared.js";
 
 //#region e20.js
 console.log(shared_default);
 
 //#endregion
 ```
-## e21_js.mjs
+## e21.js
 
 ```js
-import { shared_default } from "./shared.mjs";
+import { shared_default } from "./shared.js";
 
 //#region e21.js
 console.log(shared_default);
 
 //#endregion
 ```
-## e22_js.mjs
+## e22.js
 
 ```js
-import { shared_default } from "./shared.mjs";
+import { shared_default } from "./shared.js";
 
 //#region e22.js
 console.log(shared_default);
 
 //#endregion
 ```
-## e23_js.mjs
+## e23.js
 
 ```js
-import { shared_default } from "./shared.mjs";
+import { shared_default } from "./shared.js";
 
 //#region e23.js
 console.log(shared_default);
 
 //#endregion
 ```
-## e24_js.mjs
+## e24.js
 
 ```js
-import { shared_default } from "./shared.mjs";
+import { shared_default } from "./shared.js";
 
 //#region e24.js
 console.log(shared_default);
 
 //#endregion
 ```
-## e25_js.mjs
+## e25.js
 
 ```js
-import { shared_default } from "./shared.mjs";
+import { shared_default } from "./shared.js";
 
 //#region e25.js
 console.log(shared_default);
 
 //#endregion
 ```
-## e26_js.mjs
+## e26.js
 
 ```js
-import { shared_default } from "./shared.mjs";
+import { shared_default } from "./shared.js";
 
 //#region e26.js
 console.log(shared_default);
 
 //#endregion
 ```
-## e27_js.mjs
+## e27.js
 
 ```js
-import { shared_default } from "./shared.mjs";
+import { shared_default } from "./shared.js";
 
 //#region e27.js
 console.log(shared_default);
 
 //#endregion
 ```
-## e28_js.mjs
+## e28.js
 
 ```js
-import { shared_default } from "./shared.mjs";
+import { shared_default } from "./shared.js";
 
 //#region e28.js
 console.log(shared_default);
 
 //#endregion
 ```
-## e29_js.mjs
+## e29.js
 
 ```js
-import { shared_default } from "./shared.mjs";
+import { shared_default } from "./shared.js";
 
 //#region e29.js
 console.log(shared_default);
 
 //#endregion
 ```
-## e30_js.mjs
+## e30.js
 
 ```js
-import { shared_default } from "./shared.mjs";
+import { shared_default } from "./shared.js";
 
 //#region e30.js
 console.log(shared_default);
 
 //#endregion
 ```
-## e31_js.mjs
+## e31.js
 
 ```js
-import { shared_default } from "./shared.mjs";
+import { shared_default } from "./shared.js";
 
 //#region e31.js
 console.log(shared_default);
 
 //#endregion
 ```
-## e32_js.mjs
+## e32.js
 
 ```js
-import { shared_default } from "./shared.mjs";
+import { shared_default } from "./shared.js";
 
 //#region e32.js
 console.log(shared_default);
 
 //#endregion
 ```
-## e33_js.mjs
+## e33.js
 
 ```js
-import { shared_default } from "./shared.mjs";
+import { shared_default } from "./shared.js";
 
 //#region e33.js
 console.log(shared_default);
 
 //#endregion
 ```
-## e34_js.mjs
+## e34.js
 
 ```js
-import { shared_default } from "./shared.mjs";
+import { shared_default } from "./shared.js";
 
 //#region e34.js
 console.log(shared_default);
 
 //#endregion
 ```
-## e35_js.mjs
+## e35.js
 
 ```js
-import { shared_default } from "./shared.mjs";
+import { shared_default } from "./shared.js";
 
 //#region e35.js
 console.log(shared_default);
 
 //#endregion
 ```
-## e36_js.mjs
+## e36.js
 
 ```js
-import { shared_default } from "./shared.mjs";
+import { shared_default } from "./shared.js";
 
 //#region e36.js
 console.log(shared_default);
 
 //#endregion
 ```
-## e37_js.mjs
+## e37.js
 
 ```js
-import { shared_default } from "./shared.mjs";
+import { shared_default } from "./shared.js";
 
 //#region e37.js
 console.log(shared_default);
 
 //#endregion
 ```
-## e38_js.mjs
+## e38.js
 
 ```js
-import { shared_default } from "./shared.mjs";
+import { shared_default } from "./shared.js";
 
 //#region e38.js
 console.log(shared_default);
 
 //#endregion
 ```
-## e39_js.mjs
+## e39.js
 
 ```js
-import { shared_default } from "./shared.mjs";
+import { shared_default } from "./shared.js";
 
 //#region e39.js
 console.log(shared_default);
 
 //#endregion
 ```
-## shared.mjs
+## shared.js
 
 ```js
-
 //#region shared.js
 var shared_default = 123;
 

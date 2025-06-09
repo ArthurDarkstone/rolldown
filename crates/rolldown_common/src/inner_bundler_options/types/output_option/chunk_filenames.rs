@@ -1,4 +1,5 @@
-use std::{fmt::Debug, future::Future, pin::Pin};
+use derive_more::Debug;
+use std::{future::Future, pin::Pin, sync::Arc};
 
 use crate::RollupPreRenderedChunk;
 
@@ -8,18 +9,12 @@ type ChunkFilenamesFunction = dyn Fn(
   + Send
   + Sync;
 
+#[derive(Clone, Debug)]
 pub enum ChunkFilenamesOutputOption {
+  #[debug("ChunkFilenamesOutputOption::String({_0:?})")]
   String(String),
-  Fn(Box<ChunkFilenamesFunction>),
-}
-
-impl Debug for ChunkFilenamesOutputOption {
-  fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-    match self {
-      Self::String(value) => write!(f, "ChunkFilenamesOutputOption::String({value:?})"),
-      Self::Fn(_) => write!(f, "ChunkFilenamesOutputOption::Fn(...)"),
-    }
-  }
+  #[debug("ChunkFilenamesOutputOption::Fn(...)")]
+  Fn(Arc<ChunkFilenamesFunction>),
 }
 
 impl ChunkFilenamesOutputOption {

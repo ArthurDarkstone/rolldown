@@ -3,12 +3,11 @@ source: crates/rolldown_testing/src/integration_test.rs
 ---
 # Assets
 
-## main.cjs
+## main.js
 
 ```js
 // Banner
 
-"use strict";
 
 //#region main.js
 var main_default = "banner";

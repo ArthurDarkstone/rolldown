@@ -1,21 +1,18 @@
 use std::path::Path;
 
 use arcstr::ArcStr;
-use oxc::{
-  semantic::{ScopeTree, SymbolTable},
-  span::SourceType as OxcSourceType,
-  transformer::ReplaceGlobalDefinesConfig,
-};
-use rolldown_common::{ModuleType, NormalizedBundlerOptions, StrOrBytes};
+use oxc::{semantic::Scoping, span::SourceType as OxcSourceType};
+use rolldown_common::{ModuleType, NormalizedBundlerOptions, RUNTIME_MODULE_KEY, StrOrBytes};
 use rolldown_ecmascript::{EcmaAst, EcmaCompiler};
-use rolldown_error::DiagnosableResult;
-use rolldown_loader_utils::{binary_to_esm, json_to_esm, text_to_esm};
-use rolldown_plugin::{HookTransformAstArgs, PluginDriver};
+use rolldown_error::{BuildDiagnostic, BuildResult};
+use rolldown_loader_utils::{binary_to_esm, text_to_string_literal};
+use rolldown_plugin::HookTransformAstArgs;
 use rolldown_utils::mime::guess_mime;
+use sugar_path::SugarPath;
 
 use super::pre_process_ecma_ast::PreProcessEcmaAst;
 
-use crate::{runtime::RUNTIME_MODULE_ID, types::oxc_parse_type::OxcParseType};
+use crate::types::{module_factory::CreateModuleContext, oxc_parse_type::OxcParseType};
 
 fn pure_esm_js_oxc_source_type() -> OxcSourceType {
   let pure_esm_js = OxcSourceType::default().with_module(true);
@@ -29,91 +26,124 @@ fn pure_esm_js_oxc_source_type() -> OxcSourceType {
 
 pub struct ParseToEcmaAstResult {
   pub ast: EcmaAst,
-  pub symbol_table: SymbolTable,
-  pub scope_tree: ScopeTree,
-  pub source: ArcStr,
+  pub scoping: Scoping,
+  pub has_lazy_export: bool,
+  pub warning: Vec<BuildDiagnostic>,
 }
 
-pub fn parse_to_ecma_ast(
-  plugin_driver: &PluginDriver,
-  path: &Path,
-  stable_id: &str,
-  options: &NormalizedBundlerOptions,
-  module_type: &ModuleType,
+pub async fn parse_to_ecma_ast(
+  ctx: &CreateModuleContext<'_>,
   source: StrOrBytes,
-  replace_global_define_config: Option<&ReplaceGlobalDefinesConfig>,
-) -> anyhow::Result<DiagnosableResult<ParseToEcmaAstResult>> {
-  // 1. Transform the source to the type that rolldown supported.
-  let (source, parsed_type) = match module_type {
-    ModuleType::Js => (source.try_into_string()?, OxcParseType::Js),
-    ModuleType::Jsx => (source.try_into_string()?, OxcParseType::Jsx),
-    ModuleType::Ts => (source.try_into_string()?, OxcParseType::Ts),
-    ModuleType::Tsx => (source.try_into_string()?, OxcParseType::Tsx),
-    ModuleType::Css => {
-      let content = "export {}".to_string();
-      (content, OxcParseType::Js)
-    }
-    ModuleType::Json => {
-      let content = json_to_esm(&source.try_into_string()?)?;
-      (content, OxcParseType::Js)
-    }
-    ModuleType::Text => {
-      let content = text_to_esm(&source.try_into_string()?)?;
-      (content, OxcParseType::Js)
-    }
-    ModuleType::Base64 => {
-      let source = source.try_into_bytes()?;
-      let encoded = rolldown_utils::base64::to_standard_base64(source);
-      (text_to_esm(&encoded)?, OxcParseType::Js)
-    }
-    ModuleType::Dataurl => {
-      let data = source.try_into_bytes()?;
-      let guessed_mime = guess_mime(path, &data)?;
-      let dataurl = rolldown_utils::dataurl::encode_as_shortest_dataurl(&guessed_mime, &data);
-      (text_to_esm(&dataurl)?, OxcParseType::Js)
-    }
-    ModuleType::Binary => {
-      let source = source.try_into_bytes()?;
-      let encoded = rolldown_utils::base64::to_standard_base64(source);
-      (binary_to_esm(&encoded, options.platform, RUNTIME_MODULE_ID), OxcParseType::Js)
-    }
-    ModuleType::Empty => ("export {}".to_string(), OxcParseType::Js),
-    ModuleType::Custom(custom_type) => {
-      // TODO: should provide friendly error message to say that this type is not supported by rolldown.
-      // Users should handle this type in load/transform hooks
-      return Err(anyhow::format_err!("Unknown module type: {custom_type}"));
-    }
-  };
+) -> BuildResult<ParseToEcmaAstResult> {
+  let CreateModuleContext {
+    options,
+    stable_id,
+    resolved_id,
+    module_type,
+    plugin_driver,
+    replace_global_define_config,
+    ..
+  } = ctx;
+
+  let path = resolved_id.id.as_path();
+  let is_user_defined_entry = ctx.is_user_defined_entry;
+
+  let (has_lazy_export, source, parsed_type) =
+    pre_process_source(path, source, module_type, is_user_defined_entry, options)?;
 
   let oxc_source_type = {
     let default = pure_esm_js_oxc_source_type();
     match parsed_type {
       OxcParseType::Js => default,
-      OxcParseType::Jsx => default.with_jsx(true),
+      OxcParseType::Jsx => default.with_jsx(!options.transform_options.is_jsx_disabled()),
       OxcParseType::Ts => default.with_typescript(true),
-      OxcParseType::Tsx => default.with_typescript(true).with_jsx(true),
+      OxcParseType::Tsx => {
+        default.with_typescript(true).with_jsx(!options.transform_options.is_jsx_disabled())
+      }
     }
   };
 
-  let source = ArcStr::from(source);
-  let parse_result = EcmaCompiler::parse(stable_id, &source, oxc_source_type);
-
-  let mut ecma_ast = match parse_result {
-    Ok(ecma_ast) => ecma_ast,
-    Err(errs) => {
-      return Ok(Err(errs));
+  let mut ecma_ast = match module_type {
+    ModuleType::Json | ModuleType::Dataurl | ModuleType::Base64 | ModuleType::Text => {
+      EcmaCompiler::parse_expr_as_program(stable_id, source, oxc_source_type)?
     }
+    _ => EcmaCompiler::parse(stable_id, source, oxc_source_type)?,
   };
 
-  ecma_ast = plugin_driver.transform_ast(HookTransformAstArgs {
-    cwd: &options.cwd,
-    ast: ecma_ast,
-    id: stable_id,
-  })?;
-
-  PreProcessEcmaAst::default()
-    .build(ecma_ast, &parsed_type, path, replace_global_define_config, options)
-    .map(|(ast, symbol_table, scope_tree)| {
-      Ok(ParseToEcmaAstResult { ast, symbol_table, scope_tree, source })
+  ecma_ast = plugin_driver
+    .transform_ast(HookTransformAstArgs {
+      cwd: &options.cwd,
+      ast: ecma_ast,
+      id: resolved_id.id.as_str(),
+      stable_id,
+      is_user_defined_entry,
+      module_type,
     })
+    .await?;
+
+  PreProcessEcmaAst::default().build(
+    ecma_ast,
+    stable_id,
+    &parsed_type,
+    replace_global_define_config.as_ref(),
+    options,
+    has_lazy_export,
+  )
+}
+
+fn pre_process_source(
+  path: &Path,
+  source: StrOrBytes,
+  module_type: &ModuleType,
+  is_user_defined_entry: bool,
+  options: &NormalizedBundlerOptions,
+) -> BuildResult<(bool, ArcStr, OxcParseType)> {
+  let mut has_lazy_export = matches!(
+    module_type,
+    ModuleType::Json
+      | ModuleType::Text
+      | ModuleType::Base64
+      | ModuleType::Dataurl
+      | ModuleType::Asset
+  );
+
+  let source = match module_type {
+    ModuleType::Js | ModuleType::Jsx | ModuleType::Ts | ModuleType::Tsx | ModuleType::Json => {
+      source.try_into_string()?
+    }
+    ModuleType::Css => {
+      if is_user_defined_entry {
+        "export {}".to_owned()
+      } else {
+        has_lazy_export = true;
+        "({})".to_owned()
+      }
+    }
+    ModuleType::Text => text_to_string_literal(&source.try_into_string()?)?,
+    ModuleType::Asset => "import.meta.__ROLLDOWN_ASSET_FILENAME".to_string(),
+    ModuleType::Base64 => {
+      let source = source.into_bytes();
+      let encoded = rolldown_utils::base64::to_standard_base64(source);
+      text_to_string_literal(&encoded)?
+    }
+    ModuleType::Dataurl => {
+      let data = source.into_bytes();
+      let guessed_mime = guess_mime(path, &data)?;
+      let dataurl = rolldown_utils::dataurl::encode_as_shortest_dataurl(&guessed_mime, &data);
+      text_to_string_literal(&dataurl)?
+    }
+    ModuleType::Binary => {
+      let source = source.into_bytes();
+      let encoded = rolldown_utils::base64::to_standard_base64(source);
+      binary_to_esm(&encoded, options.platform, RUNTIME_MODULE_KEY)
+    }
+    ModuleType::Empty => String::new(),
+    ModuleType::Custom(custom_type) => {
+      // TODO: should provide friendly error message to say that this type is not supported by rolldown.
+      // Users should handle this type in load/transform hooks
+      return Err(anyhow::format_err!("Unknown module type: {custom_type}"))?;
+    }
+  };
+
+  Ok((has_lazy_export, source.into(), module_type.into()))
 }

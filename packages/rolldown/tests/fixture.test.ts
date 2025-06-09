@@ -38,7 +38,13 @@ function main() {
     })
   }
 
-  for (const [testConfigPath, testConfig] of Object.entries(testConfigPaths)) {
+  const pluginTestConfigPaths = import.meta.glob<TestConfig>(
+    './fixtures/plugin/**/_config.ts',
+    { import: 'default', eager: true },
+  )
+  for (const [testConfigPath, testConfig] of Object.entries(
+    pluginTestConfigPaths,
+  )) {
     const dirPath = nodePath.dirname(testConfigPath)
     const testName = dirPath.replace('./fixtures/', '')
 
@@ -75,12 +81,17 @@ function main() {
 }
 
 async function compileFixture(fixturePath: string, config: TestConfig) {
-  let outputOptions: OutputOptions = config.config?.output ?? {}
+  if (Array.isArray(config.config?.output)) {
+    throw new Error(
+      'The multiply output configure is not support at test runner',
+    )
+  }
+  let outputOptions = config.config?.output ?? {}
   const inputOptions: InputOptions = {
     input: 'main.js',
     cwd: fixturePath,
     ...config.config,
   }
   const build = await rolldown(inputOptions)
-  return await build.write(outputOptions)
+  return await build.write(outputOptions as OutputOptions)
 }

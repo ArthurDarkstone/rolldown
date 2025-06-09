@@ -1,3 +1,5 @@
+# Reason
+1. different inject implementation
 # Diff
 ## /out.js
 ### esbuild
@@ -21,27 +23,16 @@ console.log(
 ```
 ### rolldown
 ```js
-
 //#region entry.js
-console.log(
-	// These should be fully substituted
-	import.meta,
-	import.meta.foo,
-	import.meta.foo.bar,
-	// Should just substitute "import.meta.foo"
-	import.meta.foo.baz,
-	// This should not be substituted
-	import.meta.bar
-);
+console.log(import.meta, import.meta.foo, import.meta.foo.bar, import.meta.foo.baz, import.meta.bar);
 
 //#endregion
-
 ```
 ### diff
 ```diff
 ===================================================================
 --- esbuild	/out.js
-+++ rolldown	entry_js.mjs
++++ rolldown	entry.js
 @@ -1,4 +1,1 @@
 -var foo = 1;
 -var bar = 2;

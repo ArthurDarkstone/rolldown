@@ -1,4 +1,15 @@
 {
+  "$schema": "./node_modules/oxlint/configuration_schema.json",
+  "plugins": ["import", "jsdoc", "unicorn", "typescript", "oxc"],
+  "ignorePatterns": [
+    "crates/**",
+    "packages/rollup-tests/**",
+    "packages/rolldown/tests/fixtures/**",
+    "packages/rolldown/tests/stability/**",
+    "packages/rolldown/src/binding.d.ts",
+    "packages/vite-tests/repo/**",
+    "rollup/**"
+  ],
   "rules": {
     "no-unused-vars": [
       "warn",
@@ -10,6 +21,20 @@
       {
         "allowComputed": true
       }
-    ]
-  }
+    ],
+    "import/named": "error"
+  },
+  "overrides": [
+    {
+      "files": ["**/packages/rolldown/src/**"],
+      "rules": {
+        "no-console": [
+          "warn",
+          {
+            "allow": ["warn", "error", "debug", "info"]
+          }
+        ]
+      }
+    }
+  ]
 }

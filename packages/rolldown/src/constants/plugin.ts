@@ -1,41 +1,52 @@
-import { Plugin } from '../plugin'
-
-export const ENUMERATED_PLUGIN_HOOK_NAMES = [
-  // build hooks
+export const ENUMERATED_INPUT_PLUGIN_HOOK_NAMES = [
   'options',
   'buildStart',
   'resolveId',
   'load',
   'transform',
   'moduleParsed',
-  'augmentChunkHash',
   'buildEnd',
   'onLog',
   'resolveDynamicImport',
-  // generate hooks
-  'generateBundle',
+  'closeBundle',
+  'closeWatcher',
+  'watchChange',
+] as const;
+
+const ENUMERATED_OUTPUT_PLUGIN_HOOK_NAMES = [
+  'augmentChunkHash',
   'outputOptions',
   'renderChunk',
   'renderStart',
   'renderError',
   'writeBundle',
+  'generateBundle',
+] as const;
+
+export const ENUMERATED_PLUGIN_HOOK_NAMES: [
+  ...typeof ENUMERATED_INPUT_PLUGIN_HOOK_NAMES,
+  ...typeof ENUMERATED_OUTPUT_PLUGIN_HOOK_NAMES,
   'footer',
   'banner',
   'intro',
   'outro',
-  'closeBundle',
-] as const
+] = [
+  // build hooks
+  ...ENUMERATED_INPUT_PLUGIN_HOOK_NAMES,
+  // generate hooks
+  ...ENUMERATED_OUTPUT_PLUGIN_HOOK_NAMES,
+  // addon hooks
+  'footer',
+  'banner',
+  'intro',
+  'outro',
+] as const;
 
-/**
- * Names of all properties in a `Plugin` object. Includes `name` and `api`.
- */
-export type PluginProps = keyof Plugin
-
-type EnumeratedPluginHookNames = typeof ENUMERATED_PLUGIN_HOOK_NAMES
+type EnumeratedPluginHookNames = typeof ENUMERATED_PLUGIN_HOOK_NAMES;
 /**
  * Names of all hooks in a `Plugin` object. Does not include `name` and `api`, since they are not hooks.
  */
-export type PluginHookNames = EnumeratedPluginHookNames[number]
+export type PluginHookNames = EnumeratedPluginHookNames[number];
 
 /**
  * Names of all defined hooks. It's like
@@ -48,8 +59,8 @@ export type PluginHookNames = EnumeratedPluginHookNames[number]
  * ```
  */
 export type DefinedHookNames = {
-  readonly [K in PluginHookNames]: K
-}
+  readonly [K in PluginHookNames]: K;
+};
 
 /**
  * Names of all defined hooks. It's like
@@ -83,4 +94,6 @@ export const DEFINED_HOOK_NAMES: DefinedHookNames = {
   [ENUMERATED_PLUGIN_HOOK_NAMES[18]]: ENUMERATED_PLUGIN_HOOK_NAMES[18],
   [ENUMERATED_PLUGIN_HOOK_NAMES[19]]: ENUMERATED_PLUGIN_HOOK_NAMES[19],
   [ENUMERATED_PLUGIN_HOOK_NAMES[20]]: ENUMERATED_PLUGIN_HOOK_NAMES[20],
-} as const
+  [ENUMERATED_PLUGIN_HOOK_NAMES[21]]: ENUMERATED_PLUGIN_HOOK_NAMES[21],
+  [ENUMERATED_PLUGIN_HOOK_NAMES[22]]: ENUMERATED_PLUGIN_HOOK_NAMES[22],
+} as const;

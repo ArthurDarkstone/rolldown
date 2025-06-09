@@ -2,10 +2,15 @@
   "config": {
     "input": [
       {
-        "name": "test_jsx",
+        "name": "test",
         "import": "test.jsx"
       }
-    ]
+    ],
+    "transform": {
+      "jsx": {
+        "runtime": "classic"
+      }
+    }
   },
   "expectExecuted": false
 }

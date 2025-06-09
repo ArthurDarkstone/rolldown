@@ -1,8 +1,8 @@
 import {
-  instantiateNapiModuleSync as __emnapiInstantiateNapiModuleSync,
-  getDefaultContext as __emnapiGetDefaultContext,
-  WASI as __WASI,
   createOnMessage as __wasmCreateOnMessageForFsProxy,
+  getDefaultContext as __emnapiGetDefaultContext,
+  instantiateNapiModule as __emnapiInstantiateNapiModule,
+  WASI as __WASI,
 } from '@napi-rs/wasm-runtime'
 import { memfs } from '@napi-rs/wasm-runtime/fs'
 import __wasmUrl from './rolldown-binding.wasm32-wasi.wasm?url'
@@ -14,7 +14,7 @@ const __wasi = new __WASI({
   fs: __fs,
   preopens: {
     '/': '/',
-  }
+  },
 })
 
 const __emnapiContext = __emnapiGetDefaultContext()
@@ -31,7 +31,7 @@ const {
   instance: __napiInstance,
   module: __wasiModule,
   napiModule: __napiModule,
-} = __emnapiInstantiateNapiModuleSync(__wasmFile, {
+} = await __emnapiInstantiateNapiModule(__wasmFile, {
   context: __emnapiContext,
   asyncWorkPoolSize: 4,
   wasi: __wasi,
@@ -53,105 +53,60 @@ const {
     return importObject
   },
   beforeInit({ instance }) {
-    __napi_rs_initialize_modules(instance)
+    for (const name of Object.keys(instance.exports)) {
+      if (name.startsWith('__napi_register__')) {
+        instance.exports[name]()
+      }
+    }
   },
 })
-
-function __napi_rs_initialize_modules(__napiInstance) {
-  __napiInstance.exports['__napi_register__SourceMap_struct_0']?.()
-  __napiInstance.exports['__napi_register__IsolatedDeclarationsResult_struct_1']?.()
-  __napiInstance.exports['__napi_register__IsolatedDeclarationsOptions_struct_2']?.()
-  __napiInstance.exports['__napi_register__TransformResult_struct_3']?.()
-  __napiInstance.exports['__napi_register__TransformOptions_struct_4']?.()
-  __napiInstance.exports['__napi_register__TypeScriptOptions_struct_5']?.()
-  __napiInstance.exports['__napi_register__JsxOptions_struct_6']?.()
-  __napiInstance.exports['__napi_register__ReactRefreshOptions_struct_7']?.()
-  __napiInstance.exports['__napi_register__ArrowFunctionsOptions_struct_8']?.()
-  __napiInstance.exports['__napi_register__Es2015Options_struct_9']?.()
-  __napiInstance.exports['__napi_register__isolated_declaration_0']?.()
-  __napiInstance.exports['__napi_register__transform_1']?.()
-  __napiInstance.exports['__napi_register__Bundler_struct_0']?.()
-  __napiInstance.exports['__napi_register__Bundler_impl_6']?.()
-  __napiInstance.exports['__napi_register__BindingExperimentalOptions_struct_7']?.()
-  __napiInstance.exports['__napi_register__BindingInjectImportNamed_struct_8']?.()
-  __napiInstance.exports['__napi_register__BindingInjectImportNamespace_struct_9']?.()
-  __napiInstance.exports['__napi_register__BindingInputItem_struct_10']?.()
-  __napiInstance.exports['__napi_register__BindingResolveOptions_struct_11']?.()
-  __napiInstance.exports['__napi_register__BindingTreeshake_struct_12']?.()
-  __napiInstance.exports['__napi_register__BindingInputOptions_struct_13']?.()
-  __napiInstance.exports['__napi_register__BindingAdvancedChunksOptions_struct_14']?.()
-  __napiInstance.exports['__napi_register__BindingMatchGroup_struct_15']?.()
-  __napiInstance.exports['__napi_register__BindingOutputOptions_struct_16']?.()
-  __napiInstance.exports['__napi_register__BindingPluginContext_struct_17']?.()
-  __napiInstance.exports['__napi_register__BindingPluginContext_impl_23']?.()
-  __napiInstance.exports['__napi_register__BindingPluginContextResolvedId_struct_24']?.()
-  __napiInstance.exports['__napi_register__BindingPluginOptions_struct_25']?.()
-  __napiInstance.exports['__napi_register__BindingPluginWithIndex_struct_26']?.()
-  __napiInstance.exports['__napi_register__BindingTransformPluginContext_struct_27']?.()
-  __napiInstance.exports['__napi_register__BindingTransformPluginContext_impl_29']?.()
-  __napiInstance.exports['__napi_register__BindingAssetSource_struct_30']?.()
-  __napiInstance.exports['__napi_register__BindingEmittedAsset_struct_31']?.()
-  __napiInstance.exports['__napi_register__BindingGeneralHookFilter_struct_32']?.()
-  __napiInstance.exports['__napi_register__BindingTransformHookFilter_struct_33']?.()
-  __napiInstance.exports['__napi_register__BindingHookLoadOutput_struct_34']?.()
-  __napiInstance.exports['__napi_register__BindingHookRenderChunkOutput_struct_35']?.()
-  __napiInstance.exports['__napi_register__BindingHookResolveIdExtraArgs_struct_36']?.()
-  __napiInstance.exports['__napi_register__BindingHookResolveIdOutput_struct_37']?.()
-  __napiInstance.exports['__napi_register__BindingHookSideEffects_38']?.()
-  __napiInstance.exports['__napi_register__BindingHookTransformOutput_struct_39']?.()
-  __napiInstance.exports['__napi_register__BindingStringOrRegex_struct_40']?.()
-  __napiInstance.exports['__napi_register__BindingPluginContextResolveOptions_struct_41']?.()
-  __napiInstance.exports['__napi_register__BindingTransformHookExtraArgs_struct_42']?.()
-  __napiInstance.exports['__napi_register__BindingBuiltinPlugin_struct_43']?.()
-  __napiInstance.exports['__napi_register__BindingBuiltinPluginName_44']?.()
-  __napiInstance.exports['__napi_register__BindingGlobImportPluginConfig_struct_45']?.()
-  __napiInstance.exports['__napi_register__BindingManifestPluginConfig_struct_46']?.()
-  __napiInstance.exports['__napi_register__BindingModulePreloadPolyfillPluginConfig_struct_47']?.()
-  __napiInstance.exports['__napi_register__BindingJsonPluginConfig_struct_48']?.()
-  __napiInstance.exports['__napi_register__BindingTransformPluginConfig_struct_49']?.()
-  __napiInstance.exports['__napi_register__BindingAliasPluginConfig_struct_50']?.()
-  __napiInstance.exports['__napi_register__BindingAliasPluginAlias_struct_51']?.()
-  __napiInstance.exports['__napi_register__BindingBuildImportAnalysisPluginConfig_struct_52']?.()
-  __napiInstance.exports['__napi_register__BindingReplacePluginConfig_struct_53']?.()
-  __napiInstance.exports['__napi_register__BindingPluginOrder_54']?.()
-  __napiInstance.exports['__napi_register__BindingPluginHookMeta_struct_55']?.()
-  __napiInstance.exports['__napi_register__ParallelJsPluginRegistry_struct_56']?.()
-  __napiInstance.exports['__napi_register__ParallelJsPluginRegistry_impl_58']?.()
-  __napiInstance.exports['__napi_register__register_plugins_59']?.()
-  __napiInstance.exports['__napi_register__BindingLog_struct_60']?.()
-  __napiInstance.exports['__napi_register__BindingLogLevel_61']?.()
-  __napiInstance.exports['__napi_register__BindingModuleInfo_struct_62']?.()
-  __napiInstance.exports['__napi_register__BindingModuleInfo_impl_64']?.()
-  __napiInstance.exports['__napi_register__BindingOutputAsset_struct_65']?.()
-  __napiInstance.exports['__napi_register__BindingOutputAsset_impl_71']?.()
-  __napiInstance.exports['__napi_register__BindingOutputChunk_struct_72']?.()
-  __napiInstance.exports['__napi_register__BindingOutputChunk_impl_90']?.()
-  __napiInstance.exports['__napi_register__BindingOutputs_struct_91']?.()
-  __napiInstance.exports['__napi_register__BindingOutputs_impl_95']?.()
-  __napiInstance.exports['__napi_register__FinalBindingOutputs_struct_96']?.()
-  __napiInstance.exports['__napi_register__FinalBindingOutputs_impl_99']?.()
-  __napiInstance.exports['__napi_register__PreRenderedChunk_struct_100']?.()
-  __napiInstance.exports['__napi_register__RenderedChunk_struct_101']?.()
-  __napiInstance.exports['__napi_register__BindingRenderedModule_struct_102']?.()
-  __napiInstance.exports['__napi_register__AliasItem_struct_103']?.()
-  __napiInstance.exports['__napi_register__ExtensionAliasItem_struct_104']?.()
-  __napiInstance.exports['__napi_register__BindingSourcemap_struct_105']?.()
-  __napiInstance.exports['__napi_register__BindingJsonSourcemap_struct_106']?.()
-}
-export const BindingLog = __napiModule.exports.BindingLog
+export default __napiModule.exports
+export const Severity = __napiModule.exports.Severity
+export const ParseResult = __napiModule.exports.ParseResult
+export const ExportExportNameKind = __napiModule.exports.ExportExportNameKind
+export const ExportImportNameKind = __napiModule.exports.ExportImportNameKind
+export const ExportLocalNameKind = __napiModule.exports.ExportLocalNameKind
+export const getBufferOffset = __napiModule.exports.getBufferOffset
+export const ImportNameKind = __napiModule.exports.ImportNameKind
+export const parseAsync = __napiModule.exports.parseAsync
+export const parseAsyncRaw = __napiModule.exports.parseAsyncRaw
+export const parseSync = __napiModule.exports.parseSync
+export const parseSyncRaw = __napiModule.exports.parseSyncRaw
+export const rawTransferSupported = __napiModule.exports.rawTransferSupported
+export const ResolverFactory = __napiModule.exports.ResolverFactory
+export const EnforceExtension = __napiModule.exports.EnforceExtension
+export const ModuleType = __napiModule.exports.ModuleType
+export const sync = __napiModule.exports.sync
+export const HelperMode = __napiModule.exports.HelperMode
+export const isolatedDeclaration = __napiModule.exports.isolatedDeclaration
+export const moduleRunnerTransform = __napiModule.exports.moduleRunnerTransform
+export const transform = __napiModule.exports.transform
+export const BindingBundleEndEventData = __napiModule.exports.BindingBundleEndEventData
+export const BindingBundleErrorEventData = __napiModule.exports.BindingBundleErrorEventData
+export const BindingCallableBuiltinPlugin = __napiModule.exports.BindingCallableBuiltinPlugin
+export const BindingError = __napiModule.exports.BindingError
+export const BindingHmrOutput = __napiModule.exports.BindingHmrOutput
 export const BindingModuleInfo = __napiModule.exports.BindingModuleInfo
+export const BindingNormalizedOptions = __napiModule.exports.BindingNormalizedOptions
 export const BindingOutputAsset = __napiModule.exports.BindingOutputAsset
 export const BindingOutputChunk = __napiModule.exports.BindingOutputChunk
 export const BindingOutputs = __napiModule.exports.BindingOutputs
 export const BindingPluginContext = __napiModule.exports.BindingPluginContext
+export const BindingRenderedChunk = __napiModule.exports.BindingRenderedChunk
+export const BindingRenderedChunkMeta = __napiModule.exports.BindingRenderedChunkMeta
+export const BindingRenderedModule = __napiModule.exports.BindingRenderedModule
 export const BindingTransformPluginContext = __napiModule.exports.BindingTransformPluginContext
+export const BindingWatcher = __napiModule.exports.BindingWatcher
+export const BindingWatcherChangeData = __napiModule.exports.BindingWatcherChangeData
+export const BindingWatcherEvent = __napiModule.exports.BindingWatcherEvent
 export const Bundler = __napiModule.exports.Bundler
-export const FinalBindingOutputs = __napiModule.exports.FinalBindingOutputs
 export const ParallelJsPluginRegistry = __napiModule.exports.ParallelJsPluginRegistry
 export const BindingBuiltinPluginName = __napiModule.exports.BindingBuiltinPluginName
 export const BindingHookSideEffects = __napiModule.exports.BindingHookSideEffects
+export const BindingJsx = __napiModule.exports.BindingJsx
 export const BindingLogLevel = __napiModule.exports.BindingLogLevel
 export const BindingPluginOrder = __napiModule.exports.BindingPluginOrder
-export const isolatedDeclaration = __napiModule.exports.isolatedDeclaration
+export const FilterTokenKind = __napiModule.exports.FilterTokenKind
 export const registerPlugins = __napiModule.exports.registerPlugins
-export const transform = __napiModule.exports.transform
+export const shutdownAsyncRuntime = __napiModule.exports.shutdownAsyncRuntime
+export const startAsyncRuntime = __napiModule.exports.startAsyncRuntime

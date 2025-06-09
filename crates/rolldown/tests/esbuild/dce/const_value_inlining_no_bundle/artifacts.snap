@@ -3,15 +3,22 @@ source: crates/rolldown_testing/src/integration_test.rs
 ---
 # Assets
 
-## backwards-reference-nested-function_js.mjs
+## backwards-reference-nested-function.js
 
 ```js
+//#region backwards-reference-nested-function.js
+function foo() {
+	const x = y;
+	const y = 1;
+	console.log(x, x, y, y);
+}
+assert(foo() !== void 0);
 
+//#endregion
 ```
-## backwards-reference-top-level_js.mjs
+## backwards-reference-top-level.js
 
 ```js
-
 //#region backwards-reference-top-level.js
 const x = y;
 const y = 1;
@@ -19,22 +26,21 @@ console.log(x, x, y, y);
 
 //#endregion
 ```
-## comment-before_js.mjs
+## comment-before.js
 
 ```js
-
 //#region comment-before.js
 {
+	//! comment
 	const REMOVE = 1;
 	x = [REMOVE, REMOVE];
 }
 
 //#endregion
 ```
-## debugger-before_js.mjs
+## debugger-before.js
 
 ```js
-
 //#region debugger-before.js
 {
 	debugger;
@@ -44,15 +50,22 @@ console.log(x, x, y, y);
 
 //#endregion
 ```
-## directive-before_js.mjs
+## directive-before.js
 
 ```js
+//#region directive-before.js
+function nested() {
+	"directive";
+	const REMOVE = 1;
+	x = [REMOVE, REMOVE];
+}
+assert(nested() !== void 0);
 
+//#endregion
 ```
-## disabled-tdz_js.mjs
+## disabled-tdz.js
 
 ```js
-
 //#region disabled-tdz.js
 foo();
 const x_keep = 1;
@@ -62,20 +75,45 @@ function foo() {
 
 //#endregion
 ```
-## exprs-before_js.mjs
+## exprs-before.js
 
 ```js
+//#region exprs-before.js
+function nested() {
+	const x = [
+		,
+		"",
+		{},
+		0n,
+		/./,
+		function() {},
+		() => {}
+	];
+	const y_REMOVE = 1;
+	function foo() {
+		return y_REMOVE;
+	}
+}
+assert(nested() !== void 0);
 
+//#endregion
 ```
-## issue-3125_js.mjs
+## issue-3125.js
 
 ```js
+//#region issue-3125.js
+function foo() {
+	const f = () => x;
+	const x = 0;
+	return f();
+}
+assert(foo() !== void 0);
 
+//#endregion
 ```
-## namespace-export_ts.mjs
+## namespace-export.js
 
 ```js
-
 //#region namespace-export.ts
 let ns;
 (function(_ns) {
@@ -86,43 +124,40 @@ let ns;
 
 //#endregion
 ```
-## nested-block_js.mjs
+## nested-block.js
 
 ```js
-
 //#region nested-block.js
 {
 	const REMOVE_n = null;
-	const REMOVE_u = undefined;
+	const REMOVE_u = void 0;
 	const REMOVE_i = 1234567;
 	const REMOVE_f = 123.456;
 	const s_keep = "";
-	console.log(
-		// These are doubled to avoid the "inline const/let into next statement if used once" optimization
-		REMOVE_n,
-		REMOVE_n,
-		REMOVE_u,
-		REMOVE_u,
-		REMOVE_i,
-		REMOVE_i,
-		REMOVE_f,
-		REMOVE_f,
-		s_keep,
-		s_keep
-);
+	console.log(REMOVE_n, REMOVE_n, REMOVE_u, REMOVE_u, REMOVE_i, REMOVE_i, REMOVE_f, REMOVE_f, s_keep, s_keep);
 }
 
 //#endregion
 ```
-## nested-function_js.mjs
+## nested-function.js
 
 ```js
+//#region nested-function.js
+function nested() {
+	const REMOVE_n = null;
+	const REMOVE_u = void 0;
+	const REMOVE_i = 1234567;
+	const REMOVE_f = 123.456;
+	const s_keep = "";
+	console.log(REMOVE_n, REMOVE_n, REMOVE_u, REMOVE_u, REMOVE_i, REMOVE_i, REMOVE_f, REMOVE_f, s_keep, s_keep);
+}
+assert(nested() !== void 0);
 
+//#endregion
 ```
-## semicolon-before_js.mjs
+## semicolon-before.js
 
 ```js
-
 //#region semicolon-before.js
 {
 	const REMOVE = 1;
@@ -131,36 +166,22 @@ let ns;
 
 //#endregion
 ```
-## top-level_js.mjs
+## top-level.js
 
 ```js
-
 //#region top-level.js
 const n_keep = null;
-const u_keep = undefined;
+const u_keep = void 0;
 const i_keep = 1234567;
 const f_keep = 123.456;
 const s_keep = "";
-console.log(
-	// These are doubled to avoid the "inline const/let into next statement if used once" optimization
-	n_keep,
-	n_keep,
-	u_keep,
-	u_keep,
-	i_keep,
-	i_keep,
-	f_keep,
-	f_keep,
-	s_keep,
-	s_keep
-);
+console.log(n_keep, n_keep, u_keep, u_keep, i_keep, i_keep, f_keep, f_keep, s_keep, s_keep);
 
 //#endregion
 ```
-## type-before_ts.mjs
+## type-before.js
 
 ```js
-
 //#region type-before.ts
 {
 	const REMOVE = 1;

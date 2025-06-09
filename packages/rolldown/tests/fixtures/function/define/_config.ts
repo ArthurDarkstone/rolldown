@@ -1,4 +1,4 @@
-import { defineTest } from '@tests'
+import { defineTest } from 'rolldown-tests'
 import { expect } from 'vitest'
 import nodePath from 'node:path'
 
@@ -7,9 +7,10 @@ export default defineTest({
     define: {
       'process.env.NODE_ENV': '"production"',
     },
+    external: ['node:assert'],
   },
-  afterTest: function (output) {
-    expect(output.output[0].code).toMatchFileSnapshot(
+  async afterTest(output) {
+    await expect(output.output[0].code).toMatchFileSnapshot(
       nodePath.join(import.meta.dirname, 'output.snap'),
     )
   },

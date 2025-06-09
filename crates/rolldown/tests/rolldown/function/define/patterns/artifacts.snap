@@ -1,12 +1,13 @@
 ---
 source: crates/rolldown_testing/src/integration_test.rs
+snapshot_kind: text
 ---
 # Assets
 
-## main.mjs
+## main.js
 
 ```js
-import { default as assert } from "node:assert";
+import assert from "node:assert";
 
 //#region main.js
 const id = "ok";
@@ -14,9 +15,9 @@ const objProp = "ok";
 assert.strictEqual(id, "ok");
 assert.strictEqual(objProp, "ok");
 (function(Id, Obj) {
-	assert.strictEqual(Id, undefined);
-	assert.strictEqual(Obj.prop, undefined);
-})(undefined, {});
+	assert.strictEqual(Id, void 0);
+	assert.strictEqual(Obj.prop, void 0);
+})(void 0, {});
 
 //#endregion
 ```

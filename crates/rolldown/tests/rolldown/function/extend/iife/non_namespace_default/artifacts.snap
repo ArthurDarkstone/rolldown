@@ -3,7 +3,7 @@ source: crates/rolldown_testing/src/integration_test.rs
 ---
 # Assets
 
-## main.mjs
+## main.js
 
 ```js
 import assert from "node:assert"
@@ -11,7 +11,6 @@ class A {
   constructor() {
 this.module = (function() {
 
-"use strict";
 
 //#region main.js
 var main_default = "default";

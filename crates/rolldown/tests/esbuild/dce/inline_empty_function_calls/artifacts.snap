@@ -3,10 +3,9 @@ source: crates/rolldown_testing/src/integration_test.rs
 ---
 # Assets
 
-## empty-async_js.mjs
+## empty-async.js
 
 ```js
-
 //#region empty-async.js
 async function keep() {}
 console.log(keep());
@@ -15,10 +14,9 @@ keep(1);
 
 //#endregion
 ```
-## empty-comma_js.mjs
+## empty-comma.js
 
 ```js
-
 //#region empty-comma.js
 function DROP() {}
 console.log((DROP(), DROP(), foo()));
@@ -31,10 +29,9 @@ foo(), DROP(), DROP();
 
 //#endregion
 ```
-## empty-cross-module_js.mjs
+## empty-cross-module.js
 
 ```js
-
 //#region empty-cross-module-def.js
 function DROP() {}
 
@@ -45,10 +42,9 @@ DROP();
 
 //#endregion
 ```
-## empty-first_js.mjs
+## empty-first.js
 
 ```js
-
 //#region empty-first.js
 function keep() {
 	return;
@@ -62,10 +58,9 @@ keep(1);
 
 //#endregion
 ```
-## empty-generator_js.mjs
+## empty-generator.js
 
 ```js
-
 //#region empty-generator.js
 function* keep() {}
 console.log(keep());
@@ -74,10 +69,9 @@ keep(1);
 
 //#endregion
 ```
-## empty-if-else_js.mjs
+## empty-if-else.js
 
 ```js
-
 //#region empty-if-else.js
 function DROP() {}
 if (foo) {
@@ -88,10 +82,9 @@ if (foo) {
 
 //#endregion
 ```
-## empty-last_js.mjs
+## empty-last.js
 
 ```js
-
 //#region empty-last.js
 function DROP() {
 	return x;
@@ -104,10 +97,9 @@ DROP();
 
 //#endregion
 ```
-## empty_js.mjs
+## empty.js
 
 ```js
-
 //#region empty.js
 function DROP() {}
 console.log(DROP(foo(), bar()));
@@ -123,10 +115,9 @@ DROP();
 
 //#endregion
 ```
-## reassign-array_js.mjs
+## reassign-array.js
 
 ```js
-
 //#region reassign-array.js
 function keep() {}
 [keep] = reassigned;
@@ -136,10 +127,9 @@ keep(1);
 
 //#endregion
 ```
-## reassign-div_js.mjs
+## reassign-div.js
 
 ```js
-
 //#region reassign-div.js
 function keep() {}
 keep /= reassigned;
@@ -149,10 +139,9 @@ keep(1);
 
 //#endregion
 ```
-## reassign-inc_js.mjs
+## reassign-inc.js
 
 ```js
-
 //#region reassign-inc.js
 function keep() {}
 keep++;
@@ -162,10 +151,9 @@ keep(1);
 
 //#endregion
 ```
-## reassign-object_js.mjs
+## reassign-object.js
 
 ```js
-
 //#region reassign-object.js
 function keep() {}
 ({keep} = reassigned);
@@ -175,10 +163,9 @@ keep(1);
 
 //#endregion
 ```
-## reassign_js.mjs
+## reassign.js
 
 ```js
-
 //#region reassign.js
 function keep() {}
 keep = reassigned;

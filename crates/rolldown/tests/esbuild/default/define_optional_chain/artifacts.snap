@@ -3,19 +3,18 @@ source: crates/rolldown_testing/src/integration_test.rs
 ---
 # Assets
 
-## entry_js.mjs
+## entry.js
 
 ```js
-
 //#region entry.js
 console.log([
-	a.b.c,
-	a?.b.c,
-	a.b?.c
+	1,
+	1,
+	1
 ], [
-	a["b"]["c"],
-	a?.["b"]["c"],
-	a["b"]?.["c"]
+	1,
+	1,
+	1
 ], [
 	a[b][c],
 	a?.[b][c],

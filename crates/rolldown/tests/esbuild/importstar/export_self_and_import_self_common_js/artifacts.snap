@@ -3,10 +3,9 @@ source: crates/rolldown_testing/src/integration_test.rs
 ---
 # Assets
 
-## entry_js.cjs
+## entry.js
 
 ```js
-"use strict";
 
 
 //#region entry.js
@@ -16,5 +15,5 @@ const foo = 123;
 console.log(entry_exports);
 
 //#endregion
-exports.foo = foo
+exports.foo = foo;
 ```

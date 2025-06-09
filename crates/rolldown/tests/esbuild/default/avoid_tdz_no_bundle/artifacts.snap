@@ -3,17 +3,16 @@ source: crates/rolldown_testing/src/integration_test.rs
 ---
 # Assets
 
-## entry_js.mjs
+## entry.js
 
 ```js
-
 //#region entry.js
-class Foo {
+var Foo = class Foo {
 	static foo = new Foo();
-}
+};
 let foo = Foo.foo;
 console.log(foo);
-class Bar {}
+var Bar = class {};
 let bar = 123;
 
 //#endregion

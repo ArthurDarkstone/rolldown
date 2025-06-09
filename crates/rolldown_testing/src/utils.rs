@@ -14,10 +14,7 @@ pub fn assert_bundled(options: BundlerOptions) {
       let mut bundler = rolldown::Bundler::new(options);
       bundler.generate().await
     });
-  assert!(
-    result.expect("[Technical Errors]: Failed to bundle.").errors.is_empty(),
-    "[Business Errors] Failed to bundle."
-  );
+  assert!(result.is_ok(), "Failed to bundle.");
 }
 
 pub fn assert_bundled_write(options: BundlerOptions) {
@@ -29,10 +26,7 @@ pub fn assert_bundled_write(options: BundlerOptions) {
       let mut bundler = rolldown::Bundler::new(options);
       bundler.write().await
     });
-  assert!(
-    result.expect("[Technical Errors]: Failed to bundle.").errors.is_empty(),
-    "[Business Errors] Failed to bundle."
-  );
+  assert!(result.is_ok(), "Failed to bundle.");
 }
 
 pub fn stringify_bundle_output(output: BundleOutput, cwd: &Path) -> String {
@@ -51,7 +45,7 @@ pub fn stringify_bundle_output(output: BundleOutput, cwd: &Path) -> String {
     ret.push_str("# warnings\n\n");
     let diagnostics = warnings
       .into_iter()
-      .map(|e| (e.kind(), e.into_diagnostic_with(&DiagnosticOptions { cwd: cwd.to_path_buf() })));
+      .map(|e| (e.kind(), e.to_diagnostic_with(&DiagnosticOptions { cwd: cwd.to_path_buf() })));
     let rendered = diagnostics
       .flat_map(|(code, diagnostic)| {
         [

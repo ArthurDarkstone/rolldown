@@ -2,10 +2,16 @@
   "config": {
     "input": [
       {
-        "name": "app_jsx",
+        "name": "app",
         "import": "app.jsx"
       }
-    ]
+    ],
+    "transform": {
+      "jsx": {
+        "pragma": "h",
+        "runtime": "classic"
+      }
+    }
   },
   "expectExecuted": false
 }

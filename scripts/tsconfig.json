@@ -1,14 +1,17 @@
 {
-  "extends": "../tsconfig.pure-js.json",
+  "extends": "../tsconfig.json",
   "include": [
     "ci/**/*.js",
     "meta/**/*.js",
     "misc/**/*.js",
     "misc/**/*.d.ts",
-    "snap-diff/**/*.ts"
+    "snap-diff/**/*.ts",
+    "src/**/*.ts"
   ],
   "compilerOptions": {
     "moduleResolution": "Bundler",
-    "module": "ESNext"
+    "module": "ESNext",
+    "isolatedDeclarations": false,
+    "allowJs": true
   }
 }

@@ -1,27 +1,35 @@
-use regex::Regex;
-use rolldown_plugin::{HookLoadArgs, HookLoadOutput, HookLoadReturn, Plugin, PluginContext};
-use rolldown_utils::path_ext::clean_url;
-use std::{borrow::Cow, sync::LazyLock};
+use std::borrow::Cow;
 
-static DATA_URL_RE: LazyLock<Regex> = LazyLock::new(|| {
-  Regex::new("^data:([^/]+\\/[^;]+)(;charset=[^;]+)?(;base64)?,([\\s\\S]*)$").unwrap()
-});
+use rolldown_plugin::{
+  HookLoadArgs, HookLoadOutput, HookLoadReturn, HookUsage, Plugin, PluginContext,
+};
 
 #[derive(Debug)]
-pub struct LoadFallbackPlugin {}
+pub struct LoadFallbackPlugin;
 
 impl Plugin for LoadFallbackPlugin {
   fn name(&self) -> Cow<'static, str> {
     Cow::Borrowed("builtin:load-fallback")
   }
 
-  async fn load(&self, _ctx: &PluginContext, args: &HookLoadArgs<'_>) -> HookLoadReturn {
-    if DATA_URL_RE.is_match(args.id) {
+  async fn load(&self, ctx: &PluginContext, args: &HookLoadArgs<'_>) -> HookLoadReturn {
+    if args.id.trim_start().starts_with("data:") {
       return Ok(None);
     }
-    let normalized_id = clean_url(args.id);
-    let code =
-      std::fs::read_to_string(normalized_id).or_else(|_| std::fs::read_to_string(args.id))?;
-    Ok(Some(HookLoadOutput { code, ..Default::default() }))
+
+    let Some(index) = memchr::memchr2(b'?', b'#', args.id.as_bytes()) else {
+      return Ok(None);
+    };
+
+    let path = &args.id[..index];
+    let Ok(code) = std::fs::read_to_string(path) else { return Ok(None) };
+
+    ctx.add_watch_file(path);
+
+    Ok(Some(HookLoadOutput { code: code.into(), ..Default::default() }))
+  }
+
+  fn register_hook_usage(&self) -> HookUsage {
+    HookUsage::Load
   }
 }

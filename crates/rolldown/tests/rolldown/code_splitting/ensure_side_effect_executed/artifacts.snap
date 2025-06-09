@@ -3,24 +3,23 @@ source: crates/rolldown_testing/src/integration_test.rs
 ---
 # Assets
 
-## entry.mjs
+## entry.js
 
 ```js
-
 //#region entry.js
 globalThis.sideEffectExecuted = true;
 
 //#endregion
 ```
-## entry2_js.mjs
+## entry2_js.js
 
 ```js
-import "./entry.mjs";
+import "./entry.js";
 
 ```
-## entry_js.mjs
+## entry_js.js
 
 ```js
-import "./entry.mjs";
+import "./entry.js";
 
 ```

@@ -1,16 +1,9 @@
-use derivative::Derivative;
 use napi::Either;
-use serde::Deserialize;
 
 #[napi_derive::napi(object)]
-#[derive(Deserialize, Debug, Derivative)]
+#[derive(Debug)]
 pub struct BindingSourcemap {
-  #[serde(skip_deserializing, default = "default_sourcemap")]
   pub inner: Either<String, BindingJsonSourcemap>,
-}
-
-fn default_sourcemap() -> Either<String, BindingJsonSourcemap> {
-  Either::A(String::default())
 }
 
 impl TryFrom<BindingSourcemap> for rolldown_sourcemap::SourceMap {
@@ -25,7 +18,7 @@ impl TryFrom<BindingSourcemap> for rolldown_sourcemap::SourceMap {
   }
 }
 
-#[derive(Deserialize, Debug, Default, Derivative)]
+#[derive(Debug, Default)]
 #[napi_derive::napi(object)]
 pub struct BindingJsonSourcemap {
   pub file: Option<String>,
@@ -34,13 +27,16 @@ pub struct BindingJsonSourcemap {
   pub sources: Option<Vec<Option<String>>>,
   pub sources_content: Option<Vec<Option<String>>>,
   pub names: Option<Vec<String>>,
+  pub debug_id: Option<String>,
+  #[napi(js_name = "x_google_ignoreList")]
+  pub x_google_ignore_list: Option<Vec<u32>>,
 }
 
 impl TryFrom<BindingJsonSourcemap> for rolldown_sourcemap::SourceMap {
   type Error = anyhow::Error;
 
   fn try_from(value: BindingJsonSourcemap) -> Result<Self, Self::Error> {
-    rolldown_sourcemap::SourceMap::from_json(rolldown_sourcemap::JSONSourceMap {
+    let map = rolldown_sourcemap::SourceMap::from_json(rolldown_sourcemap::JSONSourceMap {
       file: value.file,
       mappings: value.mappings.unwrap_or_default(),
       source_root: value.source_root,
@@ -52,8 +48,10 @@ impl TryFrom<BindingJsonSourcemap> for rolldown_sourcemap::SourceMap {
         .collect(),
       sources_content: value.sources_content,
       names: value.names.unwrap_or_default(),
-      debug_id: None,
+      debug_id: value.debug_id,
+      x_google_ignore_list: value.x_google_ignore_list,
     })
-    .map_err(|e| anyhow::format_err!("Convert json sourcemap error: {:?}", e))
+    .map_err(|e| anyhow::format_err!("Convert json sourcemap error: {:?}", e))?;
+    Ok(map)
   }
 }

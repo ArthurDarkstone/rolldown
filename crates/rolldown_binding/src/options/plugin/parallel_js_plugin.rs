@@ -7,9 +7,10 @@ use std::sync::Arc;
 #[cfg(not(target_family = "wasm"))]
 use futures::future::{self, BoxFuture};
 #[cfg(not(target_family = "wasm"))]
-use rolldown_plugin::Plugin;
-#[cfg(not(target_family = "wasm"))]
 use rolldown_plugin::__inner::Pluginable;
+use rolldown_plugin::HookUsage;
+#[cfg(not(target_family = "wasm"))]
+use rolldown_plugin::Plugin;
 
 use crate::worker_manager::WorkerManager;
 
@@ -47,14 +48,19 @@ impl ParallelJsPlugin {
   }
 
   #[cfg(not(target_family = "wasm"))]
-  async fn run_single<'a, R, F: FnOnce(&'a JsPlugin) -> BoxFuture<R>>(&'a self, f: F) -> R {
+  async fn run_single<'a, R, F: FnOnce(&'a JsPlugin) -> BoxFuture<'a, R>>(&'a self, f: F) -> R {
     let permit = self.worker_manager.acquire().await;
     let plugin = &self.plugins[permit.worker_index() as usize];
     f(plugin).await
   }
 
   #[cfg(not(target_family = "wasm"))]
-  async fn run_all<'a, R, E: std::fmt::Debug, F: FnMut(&'a JsPlugin) -> BoxFuture<Result<R, E>>>(
+  async fn run_all<
+    'a,
+    R,
+    E: std::fmt::Debug,
+    F: FnMut(&'a JsPlugin) -> BoxFuture<'a, Result<R, E>>,
+  >(
     &'a self,
     f: F,
   ) -> Result<Vec<R>, E> {
@@ -79,9 +85,10 @@ impl Plugin for ParallelJsPlugin {
   async fn build_start(
     &self,
     ctx: &rolldown_plugin::PluginContext,
+    args: &rolldown_plugin::HookBuildStartArgs<'_>,
   ) -> rolldown_plugin::HookNoopReturn {
     if self.first_plugin().build_start.is_some() {
-      self.run_all(|plugin| plugin.call_build_start(ctx)).await?;
+      self.run_all(|plugin| plugin.call_build_start(ctx, args)).await?;
     }
     Ok(())
   }
@@ -112,7 +119,7 @@ impl Plugin for ParallelJsPlugin {
 
   async fn transform(
     &self,
-    ctx: &rolldown_plugin::TransformPluginContext<'_>,
+    ctx: rolldown_plugin::SharedTransformPluginContext,
     args: &rolldown_plugin::HookTransformArgs<'_>,
   ) -> rolldown_plugin::HookTransformReturn {
     if self.first_plugin().transform.is_some() {
@@ -125,7 +132,7 @@ impl Plugin for ParallelJsPlugin {
   async fn build_end(
     &self,
     ctx: &rolldown_plugin::PluginContext,
-    args: Option<&rolldown_plugin::HookBuildEndArgs>,
+    args: Option<&rolldown_plugin::HookBuildEndArgs<'_>>,
   ) -> rolldown_plugin::HookNoopReturn {
     if self.first_plugin().build_end.is_some() {
       self.run_all(|plugin| plugin.call_build_end(ctx, args)).await?;
@@ -150,11 +157,10 @@ impl Plugin for ParallelJsPlugin {
   async fn generate_bundle(
     &self,
     ctx: &rolldown_plugin::PluginContext,
-    bundle: &mut Vec<rolldown_common::Output>,
-    is_write: bool,
+    args: &mut rolldown_plugin::HookGenerateBundleArgs<'_>,
   ) -> rolldown_plugin::HookNoopReturn {
     if self.first_plugin().generate_bundle.is_some() {
-      self.run_single(|plugin| plugin.call_generate_bundle(ctx, bundle, is_write)).await
+      self.run_single(|plugin| plugin.call_generate_bundle(ctx, args)).await
     } else {
       Ok(())
     }
@@ -163,12 +169,16 @@ impl Plugin for ParallelJsPlugin {
   async fn write_bundle(
     &self,
     ctx: &rolldown_plugin::PluginContext,
-    bundle: &mut Vec<rolldown_common::Output>,
+    args: &mut rolldown_plugin::HookWriteBundleArgs<'_>,
   ) -> rolldown_plugin::HookNoopReturn {
     if self.first_plugin().write_bundle.is_some() {
-      self.run_single(|plugin| plugin.call_write_bundle(ctx, bundle)).await
+      self.run_single(|plugin| plugin.call_write_bundle(ctx, args)).await
     } else {
       Ok(())
     }
+  }
+
+  fn register_hook_usage(&self) -> HookUsage {
+    HookUsage::all()
   }
 }

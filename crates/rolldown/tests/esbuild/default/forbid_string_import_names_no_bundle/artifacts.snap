@@ -1,30 +1,17 @@
 ---
 source: crates/rolldown_testing/src/integration_test.rs
+snapshot_kind: text
 ---
-# warnings
-
-## UNRESOLVED_IMPORT
-
-```text
-[UNRESOLVED_IMPORT] Warning: "./foo" is imported by "entry.js", but could not be resolved – treating it as an external dependency.
-
-```
-## UNRESOLVED_IMPORT
-
-```text
-[UNRESOLVED_IMPORT] Warning: "./foo" is imported by "entry.js", but could not be resolved – treating it as an external dependency.
-
-```
 # Assets
 
-## entry_js.mjs
+## entry.js
 
 ```js
-import { an import as anImport, another import as an export } from "./foo";
+import { "an import" as an_import, "another import" as an_export } from "./foo";
 
 //#region entry.js
-anImport();
+an_import();
 
 //#endregion
-export { an export };
+export { an_export as "an export" };
 ```

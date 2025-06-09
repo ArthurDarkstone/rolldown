@@ -1,13 +1,10 @@
-use oxc::index::IndexVec;
+use oxc_index::IndexVec;
 use rolldown_common::{
-  ExportsKind, IndexModules, Module, ModuleIdx, NormalModule, NormalizedBundlerOptions, StmtInfo,
-  SymbolRefDb, WrapKind,
+  ExportsKind, IndexModules, Module, ModuleIdx, NormalModule, NormalizedBundlerOptions,
+  RuntimeModuleBrief, StmtInfo, StmtInfoMeta, SymbolRefDb, WrapKind,
 };
 
-use crate::{
-  runtime::RuntimeModuleBrief,
-  types::linking_metadata::{LinkingMetadata, LinkingMetadataVec},
-};
+use crate::types::linking_metadata::{LinkingMetadata, LinkingMetadataVec};
 
 use super::LinkStage;
 
@@ -18,15 +15,15 @@ struct Context<'a> {
 }
 
 fn wrap_module_recursively(ctx: &mut Context, target: ModuleIdx) {
-  let is_visited = &mut ctx.visited_modules[target];
-  if *is_visited {
-    return;
-  }
-  *is_visited = true;
-
   let Module::Normal(module) = &ctx.modules[target] else {
     return;
   };
+
+  // Only consider `NormalModule`
+  if ctx.visited_modules[target] {
+    return;
+  }
+  ctx.visited_modules[target] = true;
 
   if matches!(ctx.linking_infos[target].wrap_kind, WrapKind::None) {
     ctx.linking_infos[target].wrap_kind = match module.exports_kind {
@@ -78,19 +75,31 @@ fn has_dynamic_exports_due_to_export_star(
 
 impl LinkStage<'_> {
   #[tracing::instrument(level = "debug", skip_all)]
-  pub fn wrap_modules(&mut self) {
+  pub(super) fn wrap_modules(&mut self) {
     let mut visited_modules_for_wrapping =
-      oxc::index::index_vec![false; self.module_table.modules.len()];
-
+      oxc_index::index_vec![false; self.module_table.modules.len()];
     let mut visited_modules_for_dynamic_exports =
-      oxc::index::index_vec![false; self.module_table.modules.len()];
+      oxc_index::index_vec![false; self.module_table.modules.len()];
 
     for module in self.module_table.modules.iter().filter_map(Module::as_normal) {
       let module_id = module.idx;
-      let linking_info = &self.metas[module_id];
 
-      let need_to_wrap = self.options.experimental.is_strict_execution_order_enabled()
-        || matches!(linking_info.wrap_kind, WrapKind::Cjs | WrapKind::Esm);
+      if module.has_star_export() {
+        has_dynamic_exports_due_to_export_star(
+          module_id,
+          &self.module_table.modules,
+          &mut self.metas,
+          &mut visited_modules_for_dynamic_exports,
+        );
+      }
+
+      let is_strict_execution_order = self.options.experimental.is_strict_execution_order_enabled();
+      let is_wrap_kind_none = matches!(self.metas[module_id].wrap_kind, WrapKind::None);
+
+      // When `strict_execution_order` is enabled, we need to wrap every module to lazy/control their execution.
+      // However, this doesn't include runtime module. runtime module should be initialized on its own.
+      let need_to_wrap =
+        !is_wrap_kind_none || (is_strict_execution_order && module_id != self.runtime.id());
 
       if need_to_wrap {
         wrap_module_recursively(
@@ -101,34 +110,32 @@ impl LinkStage<'_> {
           },
           module_id,
         );
+      } else {
+        // Make sure depended cjs modules got wrapped.
+        module.import_records.iter().for_each(|rec| {
+          let Module::Normal(importee) = &self.module_table[rec.resolved_module] else {
+            return;
+          };
+          // Commonjs as a dependency must be wrapped. The wrapper is like a commonjs runtime to help initialize the commonjs module correctly.
+          if matches!(importee.exports_kind, ExportsKind::CommonJs) {
+            wrap_module_recursively(
+              &mut Context {
+                visited_modules: &mut visited_modules_for_wrapping,
+                linking_infos: &mut self.metas,
+                modules: &self.module_table.modules,
+              },
+              importee.idx,
+            );
+          }
+        });
       }
-
-      if !module.star_exports.is_empty() {
-        has_dynamic_exports_due_to_export_star(
-          module_id,
-          &self.module_table.modules,
-          &mut self.metas,
-          &mut visited_modules_for_dynamic_exports,
-        );
-      }
-
-      module.import_records.iter().for_each(|rec| {
-        let importee_id = rec.resolved_module;
-        let Module::Normal(importee) = &self.module_table.modules[importee_id] else {
-          return;
-        };
-        if matches!(importee.exports_kind, ExportsKind::CommonJs) {
-          wrap_module_recursively(
-            &mut Context {
-              visited_modules: &mut visited_modules_for_wrapping,
-              linking_infos: &mut self.metas,
-              modules: &self.module_table.modules,
-            },
-            importee.idx,
-          );
-        }
-      });
     }
+    self.module_table.modules.iter_mut().filter_map(|m| m.as_normal_mut()).for_each(
+      |ecma_module| {
+        let linking_info = &mut self.metas[ecma_module.idx];
+        create_wrapper(ecma_module, linking_info, &mut self.symbols, &self.runtime, self.options);
+      },
+    );
   }
 }
 
@@ -148,8 +155,8 @@ pub fn create_wrapper(
     //   });
     //
     WrapKind::Cjs => {
-      let wrapper_ref =
-        symbols.create_symbol(module.idx, format!("require_{}", &module.repr_name).into());
+      let wrapper_ref = symbols
+        .create_facade_root_symbol_ref(module.idx, &format!("require_{}", &module.repr_name));
 
       let stmt_info = StmtInfo {
         stmt_idx: None,
@@ -162,7 +169,11 @@ pub fn create_wrapper(
         side_effect: false,
         is_included: false,
         import_records: Vec::new(),
+        #[cfg(debug_assertions)]
         debug_label: None,
+        meta: StmtInfoMeta::default(),
+
+        force_tree_shaking: true,
       };
 
       linking_info.wrapper_stmt_info = Some(module.stmt_infos.add_stmt_info(stmt_info));
@@ -178,7 +189,7 @@ pub fn create_wrapper(
     //
     WrapKind::Esm => {
       let wrapper_ref =
-        symbols.create_symbol(module.idx, format!("init_{}", &module.repr_name).into());
+        symbols.create_facade_root_symbol_ref(module.idx, &format!("init_{}", &module.repr_name));
 
       let stmt_info = StmtInfo {
         stmt_idx: None,
@@ -188,10 +199,13 @@ pub fn create_wrapper(
         } else {
           runtime.resolve_symbol("__esmMin").into()
         }],
-        side_effect: false,
+        side_effect: true,
         is_included: false,
         import_records: Vec::new(),
+        #[cfg(debug_assertions)]
         debug_label: None,
+        meta: StmtInfoMeta::default(),
+        force_tree_shaking: true,
       };
 
       linking_info.wrapper_stmt_info = Some(module.stmt_infos.add_stmt_info(stmt_info));

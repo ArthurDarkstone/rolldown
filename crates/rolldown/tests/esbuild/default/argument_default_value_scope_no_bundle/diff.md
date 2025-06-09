@@ -1,3 +1,5 @@
+# Reason
+1. lowering class
 # Diff
 ## /out.js
 ### esbuild
@@ -35,18 +37,17 @@ export let c = [
 ```
 ### rolldown
 ```js
-
 //#region entry.js
 function a(x = foo) {
 	var foo$1;
 	return x;
 }
-class b {
+var b = class {
 	fn(x = foo) {
 		var foo$1;
 		return x;
 	}
-}
+};
 let c = [
 	function(x = foo) {
 		var foo$1;
@@ -70,13 +71,12 @@ let c = [
 
 //#endregion
 export { a, b, c };
-
 ```
 ### diff
 ```diff
 ===================================================================
 --- esbuild	/out.js
-+++ rolldown	entry_js.mjs
++++ rolldown	entry.js
 @@ -1,27 +1,28 @@
 -export function a(o = foo) {
 -    var r;
@@ -89,18 +89,19 @@ export { a, b, c };
 -    fn(r = foo) {
 -        var f;
 -        return r;
-+class b {
++var b = class {
 +    fn(x = foo) {
 +        var foo$1;
 +        return x;
      }
- }
+-}
 -export let c = [function (o = foo) {
 -    var r;
 -    return o;
 -}, (o = foo) => {
 -    var r;
 -    return o;
++};
 +var c = [function (x = foo) {
 +    var foo$1;
 +    return x;

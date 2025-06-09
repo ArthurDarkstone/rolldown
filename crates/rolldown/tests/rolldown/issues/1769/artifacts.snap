@@ -3,12 +3,11 @@ source: crates/rolldown_testing/src/integration_test.rs
 ---
 # Assets
 
-## main.mjs
+## main.js
 
 ```js
-
 //#region lib.js
-const a = 1000;
+const a = 1e3;
 
 //#endregion
 //#region main.js

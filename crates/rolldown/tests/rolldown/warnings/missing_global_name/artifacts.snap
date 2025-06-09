@@ -11,16 +11,16 @@ source: crates/rolldown_testing/src/integration_test.rs
 ```
 # Assets
 
-## main.mjs
+## main.js
 
 ```js
 (function(node_path) {
 
-"use strict";
-const { join } = node_path;
+
+node_path = __toESM(node_path);
 
 //#region main.js
-console.log(join("a", "b"));
+console.log((0, node_path.join)("a", "b"));
 
 //#endregion
 })(node_path);

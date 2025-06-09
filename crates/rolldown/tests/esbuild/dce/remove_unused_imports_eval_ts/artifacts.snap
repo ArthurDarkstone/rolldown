@@ -6,21 +6,20 @@ source: crates/rolldown_testing/src/integration_test.rs
 ## EVAL
 
 ```text
-[EVAL] Warning: Use of eval is strongly discouraged as it poses security risks and may cause issues with minification.
-   ╭─[entry.ts:4:1]
+[EVAL] Warning: Use of `eval` function is strongly discouraged as it poses security risks and may cause issues with minification.
+   ╭─[ entry.ts:4:1 ]
    │
  4 │ eval('foo(a, b, c)')
    │ ──┬─  
-   │   ╰─── Use `eval` function here.
+   │   ╰─── Use of `eval` function here.
 ───╯
 
 ```
 # Assets
 
-## entry_js.mjs
+## entry.js
 
 ```js
-
 //#region entry.ts
 eval("foo(a, b, c)");
 

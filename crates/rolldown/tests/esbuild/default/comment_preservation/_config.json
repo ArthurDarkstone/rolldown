@@ -1,9 +1,10 @@
 {
   "expectExecuted": false,
   "config": {
+    "format": "cjs",
     "input": [
       {
-        "name": "entry_js",
+        "name": "entry",
         "import": "entry.js"
       }
     ]

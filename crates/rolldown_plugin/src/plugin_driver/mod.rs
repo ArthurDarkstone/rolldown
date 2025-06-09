@@ -1,23 +1,30 @@
 use std::{
   ops::Deref,
-  sync::{Arc, OnceLock, Weak},
+  sync::{Arc, Weak},
   vec,
 };
 
-use rolldown_common::{ModuleTable, SharedFileEmitter, SharedNormalizedBundlerOptions};
+use arcstr::ArcStr;
+use dashmap::{DashMap, DashSet};
+use oxc_index::IndexVec;
+use rolldown_common::{
+  ModuleId, ModuleInfo, ModuleLoaderMsg, SharedFileEmitter, SharedNormalizedBundlerOptions,
+};
 use rolldown_resolver::Resolver;
+use rolldown_utils::dashmap::{FxDashMap, FxDashSet};
+use tokio::sync::Mutex;
 
 use crate::{
   __inner::SharedPluginable,
-  plugin_context::PluginContextImpl,
-  type_aliases::{IndexPluginContext, IndexPluginFilter, IndexPluginable},
-  types::{hook_filter::HookFilterOptions, plugin_idx::PluginIdx},
-  PluginContext, PluginHookMeta, PluginOrder,
+  HookUsage, PluginContext, PluginHookMeta, PluginOrder,
+  plugin_context::NativePluginContextImpl,
+  type_aliases::{IndexPluginContext, IndexPluginable},
+  types::plugin_idx::PluginIdx,
 };
 
 mod build_hooks;
-mod hook_filter;
 mod output_hooks;
+mod watch_hooks;
 
 pub type SharedPluginDriver = Arc<PluginDriver>;
 
@@ -25,7 +32,12 @@ pub struct PluginDriver {
   plugins: IndexPluginable,
   contexts: IndexPluginContext,
   order_indicates: HookOrderIndicates,
-  index_plugin_filters: IndexPluginFilter,
+  pub file_emitter: SharedFileEmitter,
+  pub watch_files: Arc<FxDashSet<ArcStr>>,
+  pub modules: Arc<FxDashMap<ArcStr, Arc<ModuleInfo>>>,
+  pub(crate) tx: Arc<Mutex<Option<tokio::sync::mpsc::Sender<ModuleLoaderMsg>>>>,
+  pub(crate) plugin_usage_vec: IndexVec<PluginIdx, HookUsage>,
+  options: SharedNormalizedBundlerOptions,
 }
 
 impl PluginDriver {
@@ -35,52 +47,78 @@ impl PluginDriver {
     file_emitter: &SharedFileEmitter,
     options: &SharedNormalizedBundlerOptions,
   ) -> SharedPluginDriver {
+    let watch_files = Arc::new(DashSet::default());
+    let modules = Arc::new(DashMap::default());
+    let tx = Arc::new(Mutex::new(None));
+    let mut plugin_usage_vec = IndexVec::new();
+
     Arc::new_cyclic(|plugin_driver| {
       let mut index_plugins = IndexPluginable::with_capacity(plugins.len());
       let mut index_contexts = IndexPluginContext::with_capacity(plugins.len());
-      let mut index_plugin_filters = IndexPluginFilter::with_capacity(plugins.len());
 
       plugins.into_iter().for_each(|plugin| {
         let plugin_idx = index_plugins.push(Arc::clone(&plugin));
-        // TODO: Error handling
-        index_plugin_filters.push(HookFilterOptions {
-          load: plugin.call_load_filter().unwrap(),
-          resolve_id: plugin.call_resolve_id_filter().unwrap(),
-          transform: plugin.call_transform_filter().unwrap(),
-        });
-        index_contexts.push(
-          PluginContextImpl {
-            skipped_resolve_calls: vec![],
-            plugin_idx,
-            plugin_driver: Weak::clone(plugin_driver),
-            resolver: Arc::clone(resolver),
-            file_emitter: Arc::clone(file_emitter),
-            module_table: OnceLock::default(),
-            options: Arc::clone(options),
-          }
-          .into(),
-        );
+        plugin_usage_vec.push(plugin.call_hook_usage());
+        index_contexts.push(PluginContext::Native(Arc::new(NativePluginContextImpl {
+          skipped_resolve_calls: vec![],
+          plugin_idx,
+          plugin_driver: Weak::clone(plugin_driver),
+          resolver: Arc::clone(resolver),
+          file_emitter: Arc::clone(file_emitter),
+          modules: Arc::clone(&modules),
+          options: Arc::clone(options),
+          watch_files: Arc::clone(&watch_files),
+          tx: Arc::clone(&tx),
+        })));
       });
 
       Self {
         order_indicates: HookOrderIndicates::new(&index_plugins),
         plugins: index_plugins,
         contexts: index_contexts,
-        index_plugin_filters,
+        file_emitter: Arc::clone(file_emitter),
+        watch_files,
+        modules,
+        tx,
+        plugin_usage_vec,
+        options: Arc::clone(options),
       }
     })
   }
 
-  pub fn set_module_table(&self, module_table: &'static ModuleTable) {
-    self.contexts.iter().for_each(|ctx| {
-      ctx.module_table.set(module_table).expect("module_table is already set before");
-    });
+  pub fn clear(&self) {
+    self.watch_files.clear();
+    self.modules.clear();
+    self.file_emitter.clear();
+  }
+
+  pub fn set_module_info(&self, module_id: &ModuleId, module_info: Arc<ModuleInfo>) {
+    self.modules.insert(module_id.resource_id().into(), module_info);
+  }
+
+  pub async fn set_context_load_modules_tx(
+    &self,
+    tx: Option<tokio::sync::mpsc::Sender<ModuleLoaderMsg>>,
+  ) {
+    let mut tx_guard = self.tx.lock().await;
+    *tx_guard = tx;
+  }
+
+  pub async fn mark_context_load_modules_loaded(
+    &self,
+    module_id: &ModuleId,
+    success: bool,
+  ) -> anyhow::Result<()> {
+    if let Some(mark_module_loaded) = &self.options.mark_module_loaded {
+      mark_module_loaded.call(module_id, success).await?;
+    }
+    Ok(())
   }
 
   pub fn iter_plugin_with_context_by_order<'me>(
     &'me self,
     ordered_plugins: &'me [PluginIdx],
-  ) -> impl Iterator<Item = (PluginIdx, &SharedPluginable, &PluginContext)> + 'me {
+  ) -> impl Iterator<Item = (PluginIdx, &'me SharedPluginable, &'me PluginContext)> + 'me {
     ordered_plugins.iter().copied().map(move |idx| {
       let plugin = &self.plugins[idx];
       let context = &self.contexts[idx];
@@ -117,6 +155,8 @@ pub struct HookOrderIndicates {
   pub order_by_generate_bundle_meta: Vec<PluginIdx>,
   pub order_by_write_bundle_meta: Vec<PluginIdx>,
   pub order_by_close_bundle_meta: Vec<PluginIdx>,
+  pub order_by_watch_change_meta: Vec<PluginIdx>,
+  pub order_by_close_watcher_meta: Vec<PluginIdx>,
   pub order_by_transform_ast_meta: Vec<PluginIdx>,
 }
 
@@ -170,6 +210,12 @@ impl HookOrderIndicates {
       }),
       order_by_close_bundle_meta: Self::sort_plugins_by_hook_meta(index_plugins, |p| {
         p.call_close_bundle_meta()
+      }),
+      order_by_watch_change_meta: Self::sort_plugins_by_hook_meta(index_plugins, |p| {
+        p.call_watch_change_meta()
+      }),
+      order_by_close_watcher_meta: Self::sort_plugins_by_hook_meta(index_plugins, |p| {
+        p.call_close_watcher_meta()
       }),
       order_by_transform_ast_meta: Self::sort_plugins_by_hook_meta(index_plugins, |p| {
         p.call_transform_ast_meta()

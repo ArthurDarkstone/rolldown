@@ -1,9 +1,53 @@
-import { defineConfig } from 'vitepress'
+import { fileURLToPath } from 'node:url';
+import { defineConfig } from 'vitepress';
 import {
   groupIconMdPlugin,
   groupIconVitePlugin,
   localIconLoader,
-} from 'vitepress-plugin-group-icons'
+} from 'vitepress-plugin-group-icons';
+import llmstxt from 'vitepress-plugin-llms';
+
+const sharedSidebar = [
+  {
+    text: 'User Guide',
+    items: [
+      { text: 'Introduction', link: '/guide/index.md' },
+      { text: 'Getting Started', link: '/guide/getting-started.md' },
+      { text: 'Notable Features', link: '/guide/features.md' },
+      {
+        text: 'Plugin Development',
+        link: '/guide/plugin-development.md',
+      },
+      {
+        text: 'Troubleshooting',
+        link: '/guide/troubleshooting.md',
+      },
+    ],
+  },
+  {
+    text: 'Reference',
+    items: [
+      {
+        text: 'Config Options',
+        link: '/reference/config-options.md',
+      },
+      { text: 'Bundler API', link: '/reference/bundler-api.md' },
+      { text: 'Plugin API', link: '/reference/plugin-api.md' },
+      { text: 'Command Line Interface', link: '/reference/cli.md' },
+    ],
+  },
+  {
+    text: 'In Depth',
+    items: [
+      { text: 'Why Bundlers', link: '/guide/in-depth/why-bundlers.md' },
+      { text: 'Module Types', link: '/guide/in-depth/module-types.md' },
+      { text: 'Top Level Await', link: '/guide/in-depth/tla-in-rolldown.md' },
+      { text: 'Advanced Chunks', link: '/guide/in-depth/advanced-chunks.md' },
+      { text: 'Bundling CJS', link: '/guide/in-depth/bundling-cjs.md' },
+      // { text: 'Use Strict', link: '/guide/in-depth/use-strict.md' },
+    ],
+  },
+];
 
 // https://vitepress.dev/reference/site-config
 export default defineConfig({
@@ -12,15 +56,23 @@ export default defineConfig({
     'Fast Rust-based bundler for JavaScript with Rollup-compatible API',
   lastUpdated: true,
   cleanUrls: true,
-
-  /* prettier-ignore */
   head: [
-    ['link', { rel: 'icon', type: 'image/svg+xml', href: '/lightning-down.svg' }],
+    ['link', {
+      rel: 'icon',
+      type: 'image/svg+xml',
+      href: '/lightning-down.svg',
+    }],
     ['meta', { name: 'theme-color', content: '#ff7e17' }],
     ['meta', { property: 'og:type', content: 'website' }],
     ['meta', { property: 'og:locale', content: 'en' }],
-    ['meta', { property: 'og:title', content: 'Rolldown | Rust bundler for JavaScript' }],
-    ['meta', { property: 'og:image', content: 'https://rolldown.rs/og-image.png' }],
+    ['meta', {
+      property: 'og:title',
+      content: 'Rolldown | Rust bundler for JavaScript',
+    }],
+    ['meta', {
+      property: 'og:image',
+      content: 'https://rolldown.rs/og-image.png',
+    }],
     ['meta', { property: 'og:site_name', content: 'Rolldown' }],
     ['meta', { property: 'og:url', content: 'https://rolldown.rs/' }],
     ['meta', { name: 'twitter:card', content: 'summary_large_image' }],
@@ -28,15 +80,20 @@ export default defineConfig({
   ],
 
   themeConfig: {
+    search: {
+      provider: 'algolia',
+      options: {
+        appId: process.env.ALGOLIA_APP_ID || '',
+        apiKey: process.env.ALGOLIA_API_KEY || '',
+        indexName: 'rolldown',
+      },
+    },
     logo: { src: '/lightning-down.svg', width: 24, height: 24 },
 
     // https://vitepress.dev/reference/default-theme-config
     nav: [
-      {
-        text: 'About',
-        link: '/about.md',
-      },
-      { text: 'Guide', link: '/guide/' },
+      { text: 'User Guide', link: '/guide/' },
+      { text: 'Reference', link: '/reference/config-options.md' },
       { text: 'Contribute', link: '/contrib-guide/' },
       {
         text: 'Resources',
@@ -56,6 +113,10 @@ export default defineConfig({
                 link: 'https://twitter.com/rolldown_rs',
               },
               {
+                text: 'Bluesky',
+                link: 'https://bsky.app/profile/rolldown.rs',
+              },
+              {
                 text: 'Discord Chat',
                 link: 'https://chat.rolldown.rs',
               },
@@ -66,31 +127,22 @@ export default defineConfig({
     ],
 
     sidebar: {
-      '/guide/': [
-        {
-          text: 'Guide',
-          items: [{ text: 'Getting Started', link: '/guide/index.md' }],
-        },
-        {
-          text: 'Config',
-          items: [
-            { text: 'Configuration', link: '/guide/config/config.md' },
-            { text: 'Command Line Interface', link: '/guide/config/cli.md' },
-          ],
-        },
-        {
-          text: 'In Depth',
-          items: [
-            { text: 'Module Types', link: '/guide/in-depth/module-type.md' },
-            { text: 'Use Strict', link: '/guide/in-depth/use-strict.md' },
-          ],
-        },
-      ],
+      '/guide/': sharedSidebar,
+      '/reference/': sharedSidebar,
       '/contrib-guide/': [
-        { text: 'Overview', link: '/contrib-guide/' },
         {
-          text: 'Etiquette',
-          link: 'https://developer.mozilla.org/en-US/docs/MDN/Community/Open_source_etiquette',
+          text: 'Contribution Guide',
+          items: [
+            {
+              text: 'Overview',
+              link: '/contrib-guide/',
+            },
+            {
+              text: 'Etiquette',
+              link:
+                'https://developer.mozilla.org/en-US/docs/MDN/Community/Open_source_etiquette',
+            },
+          ],
         },
         {
           text: 'Development',
@@ -116,22 +168,22 @@ export default defineConfig({
           text: 'Coding Style',
           link: '/contrib-guide/coding-style.md',
         },
-        {
-          text: 'Misc',
-          items: [{ text: 'Release', link: '/contrib-guide/release.md' }],
-        },
       ],
     },
-
+    outline: 'deep',
     socialLinks: [
       { icon: 'x', link: 'https://twitter.com/rolldown_rs' },
+      {
+        icon: 'bluesky',
+        link: 'https://bsky.app/profile/rolldown.rs',
+      },
       { icon: 'discord', link: 'https://chat.rolldown.rs' },
       { icon: 'github', link: 'https://github.com/rolldown/rolldown' },
     ],
 
     footer: {
       message: 'Released under the MIT License.',
-      copyright: 'Copyright © 2023-present Rolldown Team & Contributors',
+      copyright: 'Copyright © 2023-present VoidZero Inc.',
     },
   },
 
@@ -146,12 +198,28 @@ export default defineConfig({
             '../public/lightning-down.svg',
           ),
         },
+      }) as any,
+      llmstxt({
+        ignoreFiles: ['contrib-guide/**/*', 'index.md', 'README.md', 'team.md'],
+        description:
+          'Fast Rust-based bundler for JavaScript with Rollup-compatible API',
+        details: '',
       }),
     ],
+    resolve: {
+      alias: [
+        {
+          find: /^.*\/VPHero\.vue$/,
+          replacement: fileURLToPath(
+            new URL('./theme/components/overrides/VPHero.vue', import.meta.url),
+          ),
+        },
+      ],
+    },
   },
   markdown: {
     config(md) {
-      md.use(groupIconMdPlugin)
+      md.use(groupIconMdPlugin);
     },
   },
-})
+});

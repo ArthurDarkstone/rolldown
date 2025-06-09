@@ -1,6 +1,7 @@
 // Port from https://github.com/evanw/esbuild/blob/main/internal/runtime/runtime.go
 var __create = Object.create
 var __defProp = Object.defineProperty
+var __name = (target, value) => __defProp(target, "name", { value, configurable: true });
 var __getOwnPropDesc = Object.getOwnPropertyDescriptor // Note: can return "undefined" due to a Safari bug
 var __getOwnPropNames = Object.getOwnPropertyNames
 var __getProtoOf = Object.getPrototypeOf
@@ -24,7 +25,21 @@ var __export = (target, all) => {
   for (var name in all)
     __defProp(target, name, { get: all[name], enumerable: true })
 }
-
+// This fallback "require" function exists so that "typeof require" can
+// naturally be "function" even in non-CommonJS environments since esbuild
+// emulates a CommonJS environment (issue #1202). However, people want this
+// shim to fall back to "globalThis.require" even if it's defined later
+// (including property accesses such as "require.resolve") so we need to
+// use a proxy (issue #1614).
+var __require = /* @__PURE__ */ (x =>
+  typeof require !== 'undefined' ? require :
+    typeof Proxy !== 'undefined' ? new Proxy(x, {
+      get: (a, b) => (typeof require !== 'undefined' ? require : a)[b]
+    }) : x
+)(function (x) {
+  if (typeof require !== 'undefined') return require.apply(this, arguments)
+  throw Error('Dynamic require of "' + x + '" is not supported')
+})
 var __copyProps = (to, from, except, desc) => {
   if (from && typeof from === 'object' || typeof from === 'function')
     for (var keys = __getOwnPropNames(from), i = 0, n = keys.length, key; i < n; i++) {

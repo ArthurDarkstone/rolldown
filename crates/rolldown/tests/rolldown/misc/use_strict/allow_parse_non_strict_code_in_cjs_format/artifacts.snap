@@ -3,21 +3,21 @@ source: crates/rolldown_testing/src/integration_test.rs
 ---
 # Assets
 
-## main.cjs
+## main.js
 
 ```js
 
-const { default: assert } = __toESM(require("node:assert"));
+const node_assert = __toESM(require("node:assert"));
 
 //#region cjs.js
 var require_cjs = __commonJS({ "cjs.js"(exports, module) {
-	module.exports = function foo$1(arguments) {};
+	module.exports = function foo$1(arguments$1) {};
 } });
 
 //#endregion
 //#region main.js
 var import_cjs = __toESM(require_cjs());
-assert(typeof import_cjs.default === "function");
+(0, node_assert.default)(typeof import_cjs.default === "function");
 
 //#endregion
 ```

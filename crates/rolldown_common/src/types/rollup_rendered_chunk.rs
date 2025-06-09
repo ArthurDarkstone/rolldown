@@ -1,10 +1,12 @@
 use arcstr::ArcStr;
-use rustc_hash::FxHashMap;
+use rolldown_rstr::Rstr;
 
-use crate::{ModuleId, RenderedModule};
+use crate::ModuleId;
+
+use super::output_chunk::Modules;
 
 // The prefix `Rollup` shows that this is struct is designed for compatibility with Rollup. Adding the `Rollup` prefix to show how much types are only used for compatibility with Rollup.
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub struct RollupRenderedChunk {
   // PreRenderedChunk
   pub name: ArcStr,
@@ -12,10 +14,10 @@ pub struct RollupRenderedChunk {
   pub is_dynamic_entry: bool,
   pub facade_module_id: Option<ModuleId>,
   pub module_ids: Vec<ModuleId>,
-  pub exports: Vec<String>,
+  pub exports: Vec<Rstr>,
   // RenderedChunk
-  pub filename: ModuleId,
-  pub modules: FxHashMap<ModuleId, RenderedModule>,
-  pub imports: Vec<ModuleId>,
-  pub dynamic_imports: Vec<ModuleId>,
+  pub filename: ArcStr,
+  pub modules: Modules,
+  pub imports: Vec<ArcStr>,
+  pub dynamic_imports: Vec<ArcStr>,
 }

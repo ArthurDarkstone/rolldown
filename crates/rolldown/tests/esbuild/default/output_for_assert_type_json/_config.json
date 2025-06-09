@@ -2,14 +2,14 @@
   "config": {
     "input": [
       {
-        "name": "js-entry_js",
+        "name": "js-entry",
         "import": "js-entry.js"
       },
       {
-        "name": "ts-entry_ts",
+        "name": "ts-entry",
         "import": "ts-entry.ts"
       }
     ]
   },
-  "expectExecuted": false
+  "expectError": true // TODO(hyf0): Remove this line after supporting import attributes
 }

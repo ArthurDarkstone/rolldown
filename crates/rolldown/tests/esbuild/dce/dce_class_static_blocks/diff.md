@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 # Diff
 ## /out.js
 ### esbuild
@@ -33,73 +32,49 @@ var D_keep = class {
 ```
 ### rolldown
 ```js
-
 //#region entry.ts
-class A_keep {
+var A_keep = class {
 	static {
 		foo;
 	}
-}
-class B_keep {
+};
+var B_keep = class {
 	static {
 		this.foo;
 	}
-}
-class C_keep {
+};
+var C_keep = class {
 	static {
 		try {
 			foo;
 		} catch {}
 	}
-}
-class D_keep {
+};
+var D_keep = class {
 	static {
-		try {} finally {
+		{
 			foo;
 		}
 	}
-}
+};
 
 //#endregion
-
 ```
 ### diff
 ```diff
 ===================================================================
 --- esbuild	/out.js
-+++ rolldown	entry_js.mjs
-@@ -1,24 +1,24 @@
--var A_keep = class {
-+class A_keep {
-     static {
-         foo;
++++ rolldown	entry.js
+@@ -16,9 +16,9 @@
      }
--};
--var B_keep = class {
-+}
-+class B_keep {
+ };
+ var D_keep = class {
      static {
-         this.foo;
-     }
--};
--var C_keep = class {
-+}
-+class C_keep {
-     static {
-         try {
-             foo;
-         } catch {}
-     }
--};
--var D_keep = class {
-+}
-+class D_keep {
-     static {
-         try {} finally {
+-        try {} finally {
++        {
              foo;
          }
      }
--};
-+}
+ };
 
 ```

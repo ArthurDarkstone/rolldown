@@ -1,161 +1,212 @@
-import type { PreRenderedChunk, RenderedChunk } from '../binding'
-import { z } from 'zod'
-import * as zodExt from '../utils/zod-ext'
-import { bold, underline } from '../cli/colors'
+import type { BindingMinifyOptions, PreRenderedChunk } from '../binding';
+import type { RolldownOutputPluginOption } from '../plugin';
+import type {
+  SourcemapIgnoreListOption,
+  SourcemapPathTransformOption,
+} from '../types/misc';
+import type { RenderedChunk } from '../types/rolldown-output';
+import type { StringOrRegExp } from '../types/utils';
 
-const ModuleFormatSchema = z
-  .literal('es')
-  .or(z.literal('cjs'))
-  .or(z.literal('esm'))
-  .or(z.literal('module'))
-  .or(z.literal('commonjs'))
-  .or(z.literal('iife'))
-  .describe(
-    `output format of the generated bundle (supports ${underline('esm')}, cjs, and iife).`,
-  )
-  .optional()
+export type ModuleFormat =
+  | 'es'
+  | 'cjs'
+  | 'esm'
+  | 'module'
+  | 'commonjs'
+  | 'iife'
+  | 'umd';
 
-const addonFunctionSchema = z
-  .function()
-  .args(zodExt.phantom<RenderedChunk>())
-  .returns(z.string().or(z.promise(z.string())))
+export type AddonFunction = (chunk: RenderedChunk) => string | Promise<string>;
 
-const chunkFileNamesFunctionSchema = z
-  .function()
-  .args(zodExt.phantom<PreRenderedChunk>())
-  .returns(z.string())
+export type ChunkFileNamesFunction = (chunkInfo: PreRenderedChunk) => string;
 
-const outputOptionsSchema = z.strictObject({
-  dir: z.string().describe('Output directory, defaults to `dist`.').optional(),
-  exports: z
-    .literal('auto')
-    .or(z.literal('named'))
-    .or(z.literal('default'))
-    .or(z.literal('none'))
-    .describe(
-      `specify a export mode (${underline('auto')}, named, default, none)`,
-    )
-    .optional(),
-  format: ModuleFormatSchema,
-  sourcemap: z
-    .boolean()
-    .or(z.literal('inline'))
-    .or(z.literal('hidden'))
-    .describe(
-      `generate sourcemap (\`-s inline\` for inline, or ${bold('pass the `-s` on the last argument if you want to generate `.map` file')}).`,
-    )
-    .optional(),
-  sourcemapIgnoreList: z
-    .boolean()
-    .or(zodExt.phantom<SourcemapIgnoreListOption>())
-    .optional(),
-  sourcemapPathTransform: zodExt
-    .phantom<SourcemapPathTransformOption>()
-    .optional(),
-  banner: z.string().or(addonFunctionSchema).optional(),
-  footer: z.string().or(addonFunctionSchema).optional(),
-  intro: z.string().or(addonFunctionSchema).optional(),
-  outro: z.string().or(addonFunctionSchema).optional(),
-  extend: z
-    .boolean()
-    .describe('extend global variable defined by name in IIFE / UMD formats')
-    .optional(),
-  esModule: z.literal('if-default-prop').or(z.boolean()).optional(),
-  entryFileNames: z.string().or(chunkFileNamesFunctionSchema).optional(),
-  chunkFileNames: z.string().or(chunkFileNamesFunctionSchema).optional(),
-  assetFileNames: z.string().optional(),
-  minify: z.boolean().describe('minify the bundled file.').optional(),
-  name: z.string().describe('name for UMD / IIFE format outputs').optional(),
-  globals: z
-    .record(z.string())
-    .describe(
-      'global variable of UMD / IIFE dependencies (syntax: `key=value`)',
-    )
-    .optional(),
-  externalLiveBindings: z
-    .boolean()
-    .describe('use external live bindings')
-    .default(true)
-    .optional(),
-  inlineDynamicImports: z
-    .boolean()
-    .describe('inline dynamic imports')
-    .default(false)
-    .optional(),
-  advancedChunks: z
-    .strictObject({
-      minSize: z.number().optional(),
-      minShareCount: z.number().optional(),
-      groups: z
-        .array(
-          z.strictObject({
-            name: z.string(),
-            test: z.string().optional(),
-            priority: z.number().optional(),
-            minSize: z.number().optional(),
-            minShareCount: z.number().optional(),
-          }),
-        )
-        .optional(),
-    })
-    .optional(),
-})
-
-const getAddonDescription = (
-  placement: 'bottom' | 'top',
-  wrapper: 'inside' | 'outside',
-) => {
-  return `code to insert the ${bold(placement)} of the bundled file (${bold(wrapper)} the wrapper function).`
+export interface PreRenderedAsset {
+  names: string[];
+  originalFileNames: string[];
+  source: string | Uint8Array;
+  type: 'asset';
 }
 
-export const outputCliOptionsSchema = outputOptionsSchema
-  .extend({
-    // Reject all functions in CLI
-    banner: z
-      .string()
-      .describe(getAddonDescription('top', 'outside'))
-      .optional(),
-    footer: z
-      .string()
-      .describe(getAddonDescription('bottom', 'outside'))
-      .optional(),
-    intro: z.string().describe(getAddonDescription('top', 'inside')).optional(),
-    outro: z
-      .string()
-      .describe(getAddonDescription('bottom', 'inside'))
-      .optional(),
-    // It is hard to handle the union type in json schema, so use this first.
-    esModule: z
-      .boolean()
-      .describe(
-        'always generate `__esModule` marks in non-ESM formats, defaults to `if-default-prop` (use `--no-esModule` to always disable).',
-      )
-      .optional(),
-    advancedChunks: z
-      .strictObject({
-        minSize: z.number().describe('minimum size of the chunk').optional(),
-        minShareCount: z
-          .number()
-          .describe('minimum share count of the chunk')
-          .optional(),
-      })
-      .optional(),
-  })
-  .omit({
-    sourcemapPathTransform: true,
-    sourcemapIgnoreList: true,
-  })
+export type AssetFileNamesFunction = (chunkInfo: PreRenderedAsset) => string;
 
-export type OutputOptions = z.infer<typeof outputOptionsSchema>
+export type GlobalsFunction = (name: string) => string;
 
-export type SourcemapIgnoreListOption = (
-  relativeSourcePath: string,
-  sourcemapPath: string,
-) => boolean
+export type MinifyOptions = BindingMinifyOptions;
 
-export type SourcemapPathTransformOption = (
-  relativeSourcePath: string,
-  sourcemapPath: string,
-) => string
+export interface OutputOptions {
+  dir?: string;
+  file?: string;
+  exports?: 'auto' | 'named' | 'default' | 'none';
+  hashCharacters?: 'base64' | 'base36' | 'hex';
+  /**
+   * Expected format of generated code.
+   * - `'es'`, `'esm'` and `'module'` are the same format, all stand for ES module.
+   * - `'cjs'` and `'commonjs'` are the same format, all stand for CommonJS module.
+   * - `'iife'` stands for [Immediately Invoked Function Expression](https://developer.mozilla.org/en-US/docs/Glossary/IIFE).
+   * - `'umd'` stands for [Universal Module Definition](https://github.com/umdjs/umd).
+   *
+   * @default 'esm'
+   */
+  format?: ModuleFormat;
+  sourcemap?: boolean | 'inline' | 'hidden';
+  sourcemapDebugIds?: boolean;
+  sourcemapIgnoreList?: boolean | SourcemapIgnoreListOption;
+  sourcemapPathTransform?: SourcemapPathTransformOption;
+  banner?: string | AddonFunction;
+  footer?: string | AddonFunction;
+  intro?: string | AddonFunction;
+  outro?: string | AddonFunction;
+  extend?: boolean;
+  esModule?: boolean | 'if-default-prop';
+  assetFileNames?: string | AssetFileNamesFunction;
+  entryFileNames?: string | ChunkFileNamesFunction;
+  chunkFileNames?: string | ChunkFileNamesFunction;
+  cssEntryFileNames?: string | ChunkFileNamesFunction;
+  cssChunkFileNames?: string | ChunkFileNamesFunction;
+  sanitizeFileName?: boolean | ((name: string) => string);
+  minify?: boolean | 'dce-only' | MinifyOptions;
+  name?: string;
+  globals?: Record<string, string> | GlobalsFunction;
+  externalLiveBindings?: boolean;
+  inlineDynamicImports?: boolean;
+  /**
+   * Allows you to do advanced chunking. Use it to reduce the number of common chunks or split out a chunk that hardly changes to obtain better caching.
+   */
+  advancedChunks?: {
+    /**
+     * - Type: `number`
+     *
+     * Global fallback of [`{group}.minSize`](#advancedchunks-groups-minsize), if it's not specified in the group.
+     */
+    minSize?: number;
+    /**
+     * - Type: `number`
+     *
+     * Global fallback of [`{group}.maxSize`](#advancedchunks-groups-maxsize), if it's not specified in the group.
+     */
+    maxSize?: number;
+    /**
+     * - Type: `number`
+     *
+     * Global fallback of [`{group}.maxModuleSize`](#advancedchunks-groups-maxmodulesize), if it's not specified in the group.
+     */
+    maxModuleSize?: number;
+    /**
+     * - Type: `number`
+     *
+     * Global fallback of [`{group}.minModuleSize`](#advancedchunks-groups-minmodulesize), if it's not specified in the group.
+     */
+    minModuleSize?: number;
+    /**
+     * - Type: `number`
+     *
+     * Global fallback of [`{group}.minShareCount`](#advancedchunks-groups-minsharecount), if it's not specified in the group.
+     */
+    minShareCount?: number;
+    /**
+     * Groups to be used for advanced chunking.
+     */
+    groups?: {
+      /**
+       * - Type: `string`
+       *
+       * Name of the group. It will be also used as the name of the chunk and replaced the `[name]` placeholder in the `chunkFileNames` option.
+       */
+      name: string;
+      /**
+       * - Type: `string | RegExp | ((id: string) => boolean | undefined | void);`
+       *
+       * Controls which modules are captured in this group.
+       *
+       * If `test` is a string, the module whose id contains the string will be captured.
+       * If `test` is a regular expression, the module whose id matches the regular expression will be captured.
+       * If `test` is a function, modules for which `test(id)` returns `true` will be captured.
+       * if `test` is empty, any module will be considered as matched.
+       */
+      test?: StringOrRegExp | ((id: string) => boolean | undefined | void);
+      /**
+       * - Type: `number`
+       *
+       * Priority of the group. Group with higher priority will be chosen first to match modules and create chunks. When converting the group to a chunk, modules of that group will be removed from other groups.
+       *
+       * If two groups have the same priority, the group whose index is smaller will be chosen.
+       */
+      priority?: number;
+      /**
+       * - Type: `number`
+       * - Default: `0`
+       *
+       * Minimum size of the desired chunk. If accumulated size of captured modules is smaller than this value, this group will be ignored.
+       */
+      minSize?: number;
+      /**
+       * - Type: `number`
+       * - Default: `1`
+       *
+       * Controls if a module should be captured based on how many entry chunks reference it.
+       */
+      minShareCount?: number;
+      /**
+       * - Type: `number`
+       * - Default: `Infinity`
+       *
+       * If final size of this group is larger than this value, this group will be spit into multiple groups that each has size closed to this value.
+       */
+      maxSize?: number;
+      /**
+       * - Type: `number`
+       * - Default: `Infinity`
+       *
+       * Controls a module could only be captured if its size is smaller or equal than this value.
+       */
+      maxModuleSize?: number;
+      /**
+       * - Type: `number`
+       * - Default: `0`
+       *
+       * Controls a module could only be captured if its size is larger or equal than this value.
+       */
+      minModuleSize?: number;
+    }[];
+  };
+  /**
+   * Control comments in the output.
+   *
+   * - `none`: no comments
+   * - `inline`: preserve comments that contain `@license`, `@preserve` or starts with `//!` `/*!`
+   */
+  legalComments?: 'none' | 'inline';
+  plugins?: RolldownOutputPluginOption;
+  polyfillRequire?: boolean;
+  hoistTransitiveImports?: false;
+  preserveModules?: boolean;
+  virtualDirname?: string;
+  preserveModulesRoot?: string;
+  preserveEntrySignatures?:
+    | false
+    | 'strict'
+    | 'allow-extension'
+    | 'exports-only';
+}
 
-export type ModuleFormat = z.infer<typeof ModuleFormatSchema>
+interface OverwriteOutputOptionsForCli {
+  banner?: string;
+  footer?: string;
+  intro?: string;
+  outro?: string;
+  esModule?: boolean;
+  globals?: Record<string, string>;
+  advancedChunks?: {
+    minSize?: number;
+    minShareCount?: number;
+  };
+}
+
+export type OutputCliOptions =
+  & Omit<
+    OutputOptions,
+    | keyof OverwriteOutputOptionsForCli
+    | 'sourcemapIgnoreList'
+    | 'sourcemapPathTransform'
+  >
+  & OverwriteOutputOptionsForCli;

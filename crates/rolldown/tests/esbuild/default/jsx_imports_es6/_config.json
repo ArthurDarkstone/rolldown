@@ -2,10 +2,17 @@
   "config": {
     "input": [
       {
-        "name": "entry_jsx",
+        "name": "entry",
         "import": "entry.jsx"
       }
-    ]
+    ],
+    "transform": {
+      "jsx": {
+        "pragma": "elem",
+        "pragmaFrag": "frag",
+        "runtime": "classic"
+      }
+    }
   },
   "expectExecuted": false
 }

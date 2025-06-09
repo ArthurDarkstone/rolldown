@@ -6,35 +6,25 @@ source: crates/rolldown_testing/src/integration_test.rs
 ## UNRESOLVED_IMPORT
 
 ```text
-[UNRESOLVED_IMPORT] Warning: "react/jsx-runtime" is imported by "entry.jsx", but could not be resolved – treating it as an external dependency.
+[UNRESOLVED_IMPORT] Warning: Could not resolve 'react/jsx-runtime' in entry.jsx
 
 ```
 # Assets
 
-## entry_jsx.mjs
+## entry.js
 
 ```js
-import { jsx as _jsx } from "react/jsx-runtime";
+import "react/jsx-runtime";
 
 //#region entry.jsx
 const obj = {
 	before,
-	...{ [key]: value },
-	...{ key: value },
-	after
-};
-_jsx(Foo, {
-	before: true,
 	[key]: value,
 	key: value,
-	after: true
-});
-_jsx(Bar, {
-	a,
-	[b]: c,
-	...d,
-	e
-});
+	after
+};
+Foo, key, value, value;
+Bar, a, b, c, { ...d }, e;
 
 //#endregion
 ```

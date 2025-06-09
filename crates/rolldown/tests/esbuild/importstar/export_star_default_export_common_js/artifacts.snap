@@ -3,7 +3,7 @@ source: crates/rolldown_testing/src/integration_test.rs
 ---
 # Assets
 
-## entry_js.mjs
+## entry.js
 
 ```js
 
@@ -11,5 +11,5 @@ source: crates/rolldown_testing/src/integration_test.rs
 let foo = "foo";
 
 //#endregion
-export { foo };
+exports.foo = foo;
 ```

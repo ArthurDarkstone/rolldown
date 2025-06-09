@@ -1,13 +1,14 @@
 ---
 source: crates/rolldown_testing/src/integration_test.rs
+snapshot_kind: text
 ---
-# warnings
+# Errors
 
 ## ILLEGAL_REASSIGNMENT
 
 ```text
-[ILLEGAL_REASSIGNMENT] Warning: Unexpected re-assignment of const variable `x`
-   ╭─[const-assign.js:2:1]
+[ILLEGAL_REASSIGNMENT] Error: Unexpected re-assignment of const variable `x`
+   ╭─[ const-assign.js:2:1 ]
    │
  1 │ const x = 1
    │       ┬  
@@ -21,8 +22,8 @@ source: crates/rolldown_testing/src/integration_test.rs
 ## ILLEGAL_REASSIGNMENT
 
 ```text
-[ILLEGAL_REASSIGNMENT] Warning: Unexpected re-assignment of const variable `x`
-   ╭─[const-update.js:2:1]
+[ILLEGAL_REASSIGNMENT] Error: Unexpected re-assignment of const variable `x`
+   ╭─[ const-update.js:2:1 ]
    │
  1 │ const x = 1
    │       ┬  
@@ -32,26 +33,4 @@ source: crates/rolldown_testing/src/integration_test.rs
    │ ╰── `x` is re-assigned here
 ───╯
 
-```
-# Assets
-
-## const-assign_js.mjs
-
-```js
-
-//#region const-assign.js
-const x = 1;
-x = 2;
-
-//#endregion
-```
-## const-update_js.mjs
-
-```js
-
-//#region const-update.js
-const x = 1;
-x += 2;
-
-//#endregion
 ```

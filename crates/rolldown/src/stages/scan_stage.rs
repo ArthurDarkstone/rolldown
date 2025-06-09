@@ -1,20 +1,22 @@
 use std::sync::Arc;
 
-use anyhow::Result;
 use arcstr::ArcStr;
 use futures::future::join_all;
-use rolldown_common::{EntryPoint, ImportKind, ModuleTable, ResolvedId, SymbolRefDb};
-use rolldown_error::{BuildDiagnostic, DiagnosableResult};
+use rolldown_common::{
+  EntryPoint, HybridIndexVec, Module, ModuleIdx, ModuleTable, ResolvedId, RuntimeModuleBrief,
+  ScanMode, SymbolRef, SymbolRefDb, dynamic_import_usage::DynamicImportExportsUsage,
+};
+use rolldown_error::{BuildDiagnostic, BuildResult};
 use rolldown_fs::OsFileSystem;
 use rolldown_plugin::SharedPluginDriver;
-use rolldown_resolver::ResolveError;
+use rustc_hash::FxHashMap;
 
 use crate::{
-  module_loader::{module_loader::ModuleLoaderOutput, ModuleLoader},
-  runtime::RuntimeModuleBrief,
-  type_alias::IndexEcmaAst,
-  utils::resolve_id::resolve_id,
   SharedOptions, SharedResolver,
+  module_loader::{ModuleLoader, module_loader::ModuleLoaderOutput},
+  type_alias::IndexEcmaAst,
+  types::scan_stage_cache::ScanStageCache,
+  utils::load_entry_module::load_entry_module,
 };
 
 pub struct ScanStage {
@@ -22,17 +24,71 @@ pub struct ScanStage {
   plugin_driver: SharedPluginDriver,
   fs: OsFileSystem,
   resolver: SharedResolver,
+  build_span: tracing::Span,
 }
 
 #[derive(Debug)]
-pub struct ScanStageOutput {
+pub struct NormalizedScanStageOutput {
   pub module_table: ModuleTable,
   pub index_ecma_ast: IndexEcmaAst,
   pub entry_points: Vec<EntryPoint>,
   pub symbol_ref_db: SymbolRefDb,
   pub runtime: RuntimeModuleBrief,
   pub warnings: Vec<BuildDiagnostic>,
-  pub errors: Vec<BuildDiagnostic>,
+  pub safely_merge_cjs_ns_map: FxHashMap<ModuleIdx, Vec<SymbolRef>>,
+  pub dynamic_import_exports_usage_map: FxHashMap<ModuleIdx, DynamicImportExportsUsage>,
+}
+
+impl NormalizedScanStageOutput {
+  /// Make a snapshot of the current ScanStage, skipping clone some fields that is immutable in
+  /// following stage
+  pub fn make_copy(&self) -> Self {
+    Self {
+      module_table: self.module_table.clone(),
+      index_ecma_ast: self
+        .index_ecma_ast
+        .iter()
+        .map(|(ast, module_idx)| (ast.clone_with_another_arena(), *module_idx))
+        .collect(),
+      entry_points: self.entry_points.clone(),
+      symbol_ref_db: self.symbol_ref_db.clone_without_scoping(),
+      runtime: self.runtime.clone(),
+      warnings: vec![],
+      dynamic_import_exports_usage_map: self.dynamic_import_exports_usage_map.clone(),
+      safely_merge_cjs_ns_map: self.safely_merge_cjs_ns_map.clone(),
+    }
+  }
+}
+
+impl From<ScanStageOutput> for NormalizedScanStageOutput {
+  fn from(value: ScanStageOutput) -> Self {
+    Self {
+      module_table: match value.module_table {
+        HybridIndexVec::IndexVec(modules) => ModuleTable { modules },
+        HybridIndexVec::Map(_) => unreachable!("Please normalized first"),
+      },
+      index_ecma_ast: value.index_ecma_ast,
+      entry_points: value.entry_points,
+      symbol_ref_db: value.symbol_ref_db,
+      runtime: value.runtime,
+      warnings: value.warnings,
+      dynamic_import_exports_usage_map: value.dynamic_import_exports_usage_map,
+      safely_merge_cjs_ns_map: value.safely_merge_cjs_ns_map,
+    }
+  }
+}
+
+#[derive(Debug)]
+pub struct ScanStageOutput {
+  pub module_table: HybridIndexVec<ModuleIdx, Module>,
+  pub index_ecma_ast: IndexEcmaAst,
+  pub entry_points: Vec<EntryPoint>,
+  pub symbol_ref_db: SymbolRefDb,
+  pub runtime: RuntimeModuleBrief,
+  pub warnings: Vec<BuildDiagnostic>,
+  pub dynamic_import_exports_usage_map: FxHashMap<ModuleIdx, DynamicImportExportsUsage>,
+  pub safely_merge_cjs_ns_map: FxHashMap<ModuleIdx, Vec<SymbolRef>>,
+  pub cache: ScanStageCache,
 }
 
 impl ScanStage {
@@ -41,29 +97,52 @@ impl ScanStage {
     plugin_driver: SharedPluginDriver,
     fs: OsFileSystem,
     resolver: SharedResolver,
+    build_span: tracing::Span,
   ) -> Self {
-    Self { options, plugin_driver, fs, resolver }
+    Self { options, plugin_driver, fs, resolver, build_span }
   }
 
-  #[tracing::instrument(level = "debug", skip_all)]
-  pub async fn scan(&mut self) -> anyhow::Result<DiagnosableResult<ScanStageOutput>> {
+  #[tracing::instrument(target = "devtool", level = "debug", skip_all)]
+  pub async fn scan(
+    &mut self,
+    mode: ScanMode,
+    cache: ScanStageCache,
+  ) -> BuildResult<ScanStageOutput> {
     if self.options.input.is_empty() {
-      return Err(anyhow::format_err!("You must supply options.input to rolldown"));
+      Err(anyhow::anyhow!("You must supply options.input to rolldown"))?;
     }
 
     let module_loader = ModuleLoader::new(
-      Arc::clone(&self.options),
-      Arc::clone(&self.plugin_driver),
       self.fs,
+      Arc::clone(&self.options),
       Arc::clone(&self.resolver),
+      Arc::clone(&self.plugin_driver),
+      cache,
+      mode.is_full(),
+      self.build_span.clone(),
     )?;
 
-    let user_entries = match self.resolve_user_defined_entries().await? {
-      Ok(entries) => entries,
-      Err(errors) => {
-        return Ok(Err(errors));
-      }
+    // For `pluginContext.emitFile` with `type: chunk`, support it at buildStart hook.
+    self
+      .plugin_driver
+      .file_emitter
+      .set_context_load_modules_tx(Some(module_loader.tx.clone()))
+      .await;
+
+    self.plugin_driver.build_start(&self.options).await?;
+
+    let user_entries = match mode {
+      ScanMode::Full => self.resolve_user_defined_entries().await?,
+      ScanMode::Partial(_) => vec![],
     };
+
+    let changed_resolved_ids = match mode {
+      ScanMode::Full => vec![],
+      ScanMode::Partial(changed_ids) => self.resolve_absolute_path(&changed_ids).await?,
+    };
+
+    // For `await pluginContext.load`, if support it at buildStart hook, it could be caused stuck.
+    self.plugin_driver.set_context_load_modules_tx(Some(module_loader.tx.clone())).await;
 
     let ModuleLoaderOutput {
       module_table,
@@ -72,54 +151,41 @@ impl ScanStage {
       runtime,
       warnings,
       index_ecma_ast,
-    } = match module_loader.fetch_all_modules(user_entries).await? {
-      Ok(output) => output,
-      Err(errors) => {
-        return Ok(Err(errors));
-      }
-    };
+      dynamic_import_exports_usage_map,
+      new_added_modules_from_partial_scan: _,
+      cache,
+      safely_merge_cjs_ns_map,
+    } = module_loader.fetch_modules(user_entries, changed_resolved_ids).await?;
 
-    Ok(Ok(ScanStageOutput {
-      module_table,
+    self.plugin_driver.file_emitter.set_context_load_modules_tx(None).await;
+
+    self.plugin_driver.set_context_load_modules_tx(None).await;
+
+    Ok(ScanStageOutput {
       entry_points,
       symbol_ref_db,
       runtime,
       warnings,
       index_ecma_ast,
-      errors: vec![],
-    }))
+      dynamic_import_exports_usage_map,
+      module_table,
+      cache,
+      safely_merge_cjs_ns_map,
+    })
   }
 
   /// Resolve `InputOptions.input`
-
-  #[tracing::instrument(level = "debug", skip_all)]
-  #[allow(clippy::type_complexity)]
+  #[tracing::instrument(target = "devtool", level = "debug", skip_all)]
   async fn resolve_user_defined_entries(
     &mut self,
-  ) -> Result<DiagnosableResult<Vec<(Option<ArcStr>, ResolvedId)>>> {
+  ) -> BuildResult<Vec<(Option<ArcStr>, ResolvedId)>> {
     let resolver = &self.resolver;
     let plugin_driver = &self.plugin_driver;
 
     let resolved_ids = join_all(self.options.input.iter().map(|input_item| async move {
-      struct Args<'a> {
-        specifier: &'a str,
-      }
-      let args = Args { specifier: &input_item.import };
-      let resolved = resolve_id(
-        resolver,
-        plugin_driver,
-        args.specifier,
-        None,
-        true,
-        ImportKind::Import,
-        None,
-        Arc::default(),
-        true,
-      )
-      .await;
+      let resolved = load_entry_module(resolver, plugin_driver, &input_item.import, None).await;
 
-      resolved
-        .map(|info| (args, info.map(|info| ((input_item.name.clone().map(ArcStr::from)), info))))
+      resolved.map(|info| (input_item.name.as_ref().map(Into::into), info))
     }))
     .await;
 
@@ -128,34 +194,50 @@ impl ScanStage {
     let mut errors = vec![];
 
     for resolve_id in resolved_ids {
-      let (args, resolve_id) = resolve_id?;
-
       match resolve_id {
         Ok(item) => {
-          if item.1.is_external {
-            errors.push(BuildDiagnostic::entry_cannot_be_external(item.1.id.to_string()));
-            continue;
-          }
           ret.push(item);
         }
-        Err(e) => match e {
-          ResolveError::NotFound(..) => {
-            errors.push(BuildDiagnostic::unresolved_entry(args.specifier, None));
-          }
-          ResolveError::PackagePathNotExported(..) => {
-            errors.push(BuildDiagnostic::unresolved_entry(args.specifier, Some(e)));
-          }
-          _ => {
-            return Err(e.into());
-          }
-        },
+        Err(e) => errors.push(e),
       }
     }
 
     if !errors.is_empty() {
-      return Ok(Err(errors));
+      Err(errors)?;
     }
 
-    Ok(Ok(ret))
+    Ok(ret)
+  }
+
+  /// Make sure the passed `ids` is all absolute path
+  async fn resolve_absolute_path(&self, ids: &[ArcStr]) -> BuildResult<Vec<ResolvedId>> {
+    let resolver = &self.resolver;
+    let plugin_driver = &self.plugin_driver;
+
+    let resolved_ids = join_all(ids.iter().map(|input_item| async move {
+      // The importer is useless, since all path is absolute path
+
+      load_entry_module(resolver, plugin_driver, input_item, None).await
+    }))
+    .await;
+
+    let mut ret = Vec::with_capacity(ids.len());
+
+    let mut errors = vec![];
+
+    for resolve_id in resolved_ids {
+      match resolve_id {
+        Ok(item) => {
+          ret.push(item);
+        }
+        Err(e) => errors.push(e),
+      }
+    }
+
+    if !errors.is_empty() {
+      Err(errors)?;
+    }
+
+    Ok(ret)
   }
 }

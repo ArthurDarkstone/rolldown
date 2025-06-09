@@ -1,14 +1,10 @@
-use derivative::Derivative;
 use rolldown::ModuleType;
-use serde::Deserialize;
 
 use super::binding_hook_side_effects::BindingHookSideEffects;
 use crate::types::binding_sourcemap::BindingSourcemap;
 
 #[napi_derive::napi(object)]
-#[derive(Deserialize, Default, Derivative)]
-#[serde(rename_all = "camelCase")]
-#[derivative(Debug)]
+#[derive(Default, Debug)]
 pub struct BindingHookTransformOutput {
   pub code: Option<String>,
   pub side_effects: Option<BindingHookSideEffects>,

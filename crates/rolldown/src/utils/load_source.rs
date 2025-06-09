@@ -1,5 +1,7 @@
+use std::{borrow::Cow, path::Path};
+
 use rolldown_common::{
-  side_effects::HookSideEffects, ModuleType, NormalizedBundlerOptions, ResolvedId, StrOrBytes,
+  ModuleType, NormalizedBundlerOptions, ResolvedId, StrOrBytes, side_effects::HookSideEffects,
 };
 use rolldown_plugin::{HookLoadArgs, PluginDriver};
 use rolldown_sourcemap::SourceMap;
@@ -13,21 +15,37 @@ pub async fn load_source(
   sourcemap_chain: &mut Vec<SourceMap>,
   side_effects: &mut Option<HookSideEffects>,
   options: &NormalizedBundlerOptions,
+  asserted_module_type: Option<&ModuleType>,
 ) -> anyhow::Result<(StrOrBytes, ModuleType)> {
-  let (maybe_source, maybe_module_type) = if let Some(load_hook_output) =
-    plugin_driver.load(&HookLoadArgs { id: &resolved_id.id }).await?
-  {
-    sourcemap_chain.extend(load_hook_output.map);
-    if let Some(v) = load_hook_output.side_effects {
-      *side_effects = Some(v);
-    }
+  let (maybe_source, maybe_module_type) =
+    match plugin_driver.load(&HookLoadArgs { id: &resolved_id.id }).await? {
+      Some(load_hook_output) => {
+        sourcemap_chain.extend(load_hook_output.map);
+        if let Some(v) = load_hook_output.side_effects {
+          *side_effects = Some(v);
+        }
 
-    (Some(load_hook_output.code), load_hook_output.module_type)
-  } else if resolved_id.ignored {
-    (Some(String::new()), Some(ModuleType::Js))
-  } else {
-    (None, None)
-  };
+        (Some(load_hook_output.code.to_string()), load_hook_output.module_type)
+      }
+      _ => {
+        if resolved_id.ignored {
+          (Some(String::new()), Some(ModuleType::Empty))
+        } else {
+          (None, None)
+        }
+      }
+    };
+
+  if let Some(asserted) = asserted_module_type {
+    let is_type_conflicted = match &maybe_module_type {
+      None => false,
+      Some(user_specified_type) if user_specified_type == asserted => false,
+      _ => true,
+    };
+    if is_type_conflicted {
+      // TODO: emit a warning about the type conflict
+    }
+  }
 
   match (maybe_source, maybe_module_type) {
     (Some(source), Some(module_type)) => Ok((source.into(), module_type)),
@@ -41,15 +59,17 @@ pub async fn load_source(
           Ok((StrOrBytes::Str(fs.read_to_string(resolved_id.id.as_path())?), ModuleType::Js))
         }
         (source, Some(guessed)) => match &guessed {
-          ModuleType::Base64 | ModuleType::Binary | ModuleType::Dataurl => Ok((
-            StrOrBytes::Bytes({
-              source
-                .map(String::into_bytes)
-                .ok_or(())
-                .or_else(|()| fs.read(resolved_id.id.as_path()))?
-            }),
-            guessed,
-          )),
+          ModuleType::Base64 | ModuleType::Binary | ModuleType::Dataurl | ModuleType::Asset => {
+            Ok((
+              StrOrBytes::Bytes({
+                source
+                  .map(String::into_bytes)
+                  .ok_or(())
+                  .or_else(|()| fs.read(resolved_id.id.as_path()))?
+              }),
+              guessed,
+            ))
+          }
           ModuleType::Js
           | ModuleType::Jsx
           | ModuleType::Ts
@@ -68,14 +88,20 @@ pub async fn load_source(
         (Some(source), None) => Ok((StrOrBytes::Str(source), ModuleType::Js)),
       }
     }
-    (None, Some(_)) => unreachable!("Invalid state"),
+    (None, Some(ty)) => {
+      if asserted_module_type.is_some() {
+        Ok((read_file_by_module_type(resolved_id.id.as_path(), &ty, fs)?, ty))
+      } else {
+        unreachable!("Invalid state")
+      }
+    }
   }
 }
 
 /// ref: https://github.com/evanw/esbuild/blob/9c13ae1f06dfa909eb4a53882e3b7e4216a503fe/internal/bundler/bundler.go#L1161-L1183
 fn get_module_loader_from_file_extension<S: AsRef<str>>(
   id: S,
-  module_types: &FxHashMap<String, ModuleType>,
+  module_types: &FxHashMap<Cow<'static, str>, ModuleType>,
 ) -> Option<ModuleType> {
   let id = id.as_ref();
   for i in memchr::memchr_iter(b'.', id.as_bytes()) {
@@ -84,4 +110,26 @@ fn get_module_loader_from_file_extension<S: AsRef<str>>(
     }
   }
   None
+}
+
+fn read_file_by_module_type(
+  path: impl AsRef<Path>,
+  ty: &ModuleType,
+  fs: &dyn rolldown_fs::FileSystem,
+) -> anyhow::Result<StrOrBytes> {
+  let path = path.as_ref();
+  match ty {
+    ModuleType::Js
+    | ModuleType::Jsx
+    | ModuleType::Ts
+    | ModuleType::Tsx
+    | ModuleType::Json
+    | ModuleType::Css
+    | ModuleType::Empty
+    | ModuleType::Custom(_)
+    | ModuleType::Text => Ok(StrOrBytes::Str(fs.read_to_string(path)?)),
+    ModuleType::Base64 | ModuleType::Binary | ModuleType::Dataurl | ModuleType::Asset => {
+      Ok(StrOrBytes::Bytes(fs.read(path)?))
+    }
+  }
 }

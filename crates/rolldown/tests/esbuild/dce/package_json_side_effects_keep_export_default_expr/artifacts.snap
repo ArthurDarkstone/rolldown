@@ -3,16 +3,15 @@ source: crates/rolldown_testing/src/integration_test.rs
 ---
 # Assets
 
-## src_entry_js.mjs
+## src_entry.js
 
 ```js
-
 //#region node_modules/demo-pkg/index.js
-var demo_pkg_index_default = exprWithSideEffects();
+var demo_pkg_default = exprWithSideEffects();
 
 //#endregion
 //#region src/entry.js
-console.log(demo_pkg_index_default);
+console.log(demo_pkg_default);
 
 //#endregion
 ```

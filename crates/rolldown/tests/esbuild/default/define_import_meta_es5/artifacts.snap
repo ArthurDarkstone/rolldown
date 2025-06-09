@@ -3,26 +3,24 @@ source: crates/rolldown_testing/src/integration_test.rs
 ---
 # Assets
 
-## dead-code_js.mjs
+## dead-code.js
 
 ```js
 
 ```
-## kept_js.mjs
+## kept.js
 
 ```js
-
 //#region kept.js
 console.log(import.meta.y);
 
 //#endregion
 ```
-## replaced_js.mjs
+## replaced.js
 
 ```js
-
 //#region replaced.js
-console.log(import.meta.x);
+console.log(1);
 
 //#endregion
 ```

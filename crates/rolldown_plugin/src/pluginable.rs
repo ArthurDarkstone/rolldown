@@ -2,18 +2,17 @@ use std::{any::Any, borrow::Cow, fmt::Debug, sync::Arc};
 
 use super::plugin_context::PluginContext;
 use crate::{
-  plugin_hook_meta::PluginHookMeta,
-  transform_plugin_context::TransformPluginContext,
+  HookAddonArgs, HookBuildEndArgs, HookBuildStartArgs, HookGenerateBundleArgs,
+  HookInjectionOutputReturn, HookLoadArgs, HookRenderChunkArgs, HookRenderStartArgs,
+  HookResolveIdArgs, HookTransformArgs, HookUsage, Plugin, PluginHookMeta,
+  SharedTransformPluginContext,
   types::{
-    hook_filter::{LoadHookFilter, ResolvedIdHookFilter, TransformHookFilter},
-    hook_render_error::HookRenderErrorArgs,
-    hook_transform_ast_args::HookTransformAstArgs,
+    hook_render_error::HookRenderErrorArgs, hook_transform_ast_args::HookTransformAstArgs,
+    hook_write_bundle_args::HookWriteBundleArgs,
   },
-  HookAddonArgs, HookBuildEndArgs, HookInjectionOutputReturn, HookLoadArgs, HookRenderChunkArgs,
-  HookResolveIdArgs, HookTransformArgs, Plugin,
 };
 use anyhow::Ok;
-use rolldown_common::{ModuleInfo, Output, RollupRenderedChunk};
+use rolldown_common::{ModuleInfo, NormalModule, RollupRenderedChunk, WatcherChangeKind};
 
 pub use crate::plugin::HookAugmentChunkHashReturn;
 pub use crate::plugin::HookLoadReturn;
@@ -39,7 +38,11 @@ pub trait Pluginable: Any + Debug + Send + Sync + 'static {
 
   // --- Build hooks ---
 
-  async fn call_build_start(&self, _ctx: &PluginContext) -> HookNoopReturn;
+  async fn call_build_start(
+    &self,
+    _ctx: &PluginContext,
+    _args: &HookBuildStartArgs,
+  ) -> HookNoopReturn;
 
   fn call_build_start_meta(&self) -> Option<PluginHookMeta>;
 
@@ -68,16 +71,16 @@ pub trait Pluginable: Any + Debug + Send + Sync + 'static {
 
   async fn call_transform(
     &self,
-    _ctx: &TransformPluginContext<'_>,
+    _ctx: SharedTransformPluginContext,
     _args: &HookTransformArgs,
   ) -> HookTransformReturn;
 
   fn call_transform_meta(&self) -> Option<PluginHookMeta>;
 
-  fn call_transform_ast(
+  async fn call_transform_ast(
     &self,
     _ctx: &PluginContext,
-    args: HookTransformAstArgs,
+    args: HookTransformAstArgs<'_>,
   ) -> HookTransformAstReturn;
 
   fn call_transform_ast_meta(&self) -> Option<PluginHookMeta>;
@@ -86,6 +89,7 @@ pub trait Pluginable: Any + Debug + Send + Sync + 'static {
     &self,
     _ctx: &PluginContext,
     _module_info: Arc<ModuleInfo>,
+    _normal_module: &NormalModule,
   ) -> HookNoopReturn;
 
   fn call_module_parsed_meta(&self) -> Option<PluginHookMeta>;
@@ -100,7 +104,11 @@ pub trait Pluginable: Any + Debug + Send + Sync + 'static {
 
   // --- Generate hooks ---
 
-  async fn call_render_start(&self, _ctx: &PluginContext) -> HookNoopReturn;
+  async fn call_render_start(
+    &self,
+    _ctx: &PluginContext,
+    _args: &HookRenderStartArgs,
+  ) -> HookNoopReturn;
 
   fn call_render_start_meta(&self) -> Option<PluginHookMeta>;
 
@@ -147,7 +155,7 @@ pub trait Pluginable: Any + Debug + Send + Sync + 'static {
   async fn call_augment_chunk_hash(
     &self,
     _ctx: &PluginContext,
-    _chunk: &RollupRenderedChunk,
+    _chunk: Arc<RollupRenderedChunk>,
   ) -> HookAugmentChunkHashReturn;
 
   fn call_augment_chunk_hash_meta(&self) -> Option<PluginHookMeta>;
@@ -163,8 +171,7 @@ pub trait Pluginable: Any + Debug + Send + Sync + 'static {
   async fn call_generate_bundle(
     &self,
     _ctx: &PluginContext,
-    _bundle: &mut Vec<Output>,
-    _is_write: bool,
+    _args: &mut HookGenerateBundleArgs,
   ) -> HookNoopReturn;
 
   fn call_generate_bundle_meta(&self) -> Option<PluginHookMeta>;
@@ -172,7 +179,7 @@ pub trait Pluginable: Any + Debug + Send + Sync + 'static {
   async fn call_write_bundle(
     &self,
     _ctx: &PluginContext,
-    _bundle: &mut Vec<Output>,
+    _args: &mut HookWriteBundleArgs,
   ) -> HookNoopReturn;
 
   fn call_write_bundle_meta(&self) -> Option<PluginHookMeta>;
@@ -181,17 +188,28 @@ pub trait Pluginable: Any + Debug + Send + Sync + 'static {
 
   fn call_close_bundle_meta(&self) -> Option<PluginHookMeta>;
 
-  fn call_transform_filter(&self) -> anyhow::Result<Option<TransformHookFilter>> {
-    Ok(None)
+  async fn call_watch_change(
+    &self,
+    _ctx: &PluginContext,
+    _path: &str,
+    _event: WatcherChangeKind,
+  ) -> HookNoopReturn {
+    Ok(())
   }
 
-  fn call_resolve_id_filter(&self) -> anyhow::Result<Option<ResolvedIdHookFilter>> {
-    Ok(None)
+  fn call_watch_change_meta(&self) -> Option<PluginHookMeta> {
+    None
   }
 
-  fn call_load_filter(&self) -> anyhow::Result<Option<LoadHookFilter>> {
-    Ok(None)
+  async fn call_close_watcher(&self, _ctx: &PluginContext) -> HookNoopReturn {
+    Ok(())
   }
+
+  fn call_close_watcher_meta(&self) -> Option<PluginHookMeta> {
+    None
+  }
+
+  fn call_hook_usage(&self) -> HookUsage;
 }
 
 #[async_trait::async_trait]
@@ -200,8 +218,12 @@ impl<T: Plugin> Pluginable for T {
     Plugin::name(self)
   }
 
-  async fn call_build_start(&self, ctx: &PluginContext) -> HookNoopReturn {
-    Plugin::build_start(self, ctx).await
+  async fn call_build_start(
+    &self,
+    ctx: &PluginContext,
+    args: &HookBuildStartArgs,
+  ) -> HookNoopReturn {
+    Plugin::build_start(self, ctx, args).await
   }
 
   fn call_build_start_meta(&self) -> Option<PluginHookMeta> {
@@ -243,7 +265,7 @@ impl<T: Plugin> Pluginable for T {
 
   async fn call_transform(
     &self,
-    ctx: &TransformPluginContext<'_>,
+    ctx: SharedTransformPluginContext,
     args: &HookTransformArgs,
   ) -> HookTransformReturn {
     Plugin::transform(self, ctx, args).await
@@ -257,8 +279,9 @@ impl<T: Plugin> Pluginable for T {
     &self,
     ctx: &PluginContext,
     module_info: Arc<ModuleInfo>,
+    normal_module: &NormalModule,
   ) -> HookNoopReturn {
-    Plugin::module_parsed(self, ctx, module_info).await
+    Plugin::module_parsed(self, ctx, module_info, normal_module).await
   }
 
   fn call_module_parsed_meta(&self) -> Option<PluginHookMeta> {
@@ -277,8 +300,12 @@ impl<T: Plugin> Pluginable for T {
     Plugin::build_end_meta(self)
   }
 
-  async fn call_render_start(&self, ctx: &PluginContext) -> HookNoopReturn {
-    Plugin::render_start(self, ctx).await
+  async fn call_render_start(
+    &self,
+    ctx: &PluginContext,
+    args: &HookRenderStartArgs,
+  ) -> HookNoopReturn {
+    Plugin::render_start(self, ctx, args).await
   }
 
   fn call_render_start_meta(&self) -> Option<PluginHookMeta> {
@@ -348,7 +375,7 @@ impl<T: Plugin> Pluginable for T {
   async fn call_augment_chunk_hash(
     &self,
     ctx: &PluginContext,
-    chunk: &RollupRenderedChunk,
+    chunk: Arc<RollupRenderedChunk>,
   ) -> HookAugmentChunkHashReturn {
     Plugin::augment_chunk_hash(self, ctx, chunk).await
   }
@@ -372,10 +399,9 @@ impl<T: Plugin> Pluginable for T {
   async fn call_generate_bundle(
     &self,
     ctx: &PluginContext,
-    bundle: &mut Vec<Output>,
-    is_write: bool,
+    args: &mut HookGenerateBundleArgs,
   ) -> HookNoopReturn {
-    Plugin::generate_bundle(self, ctx, bundle, is_write).await
+    Plugin::generate_bundle(self, ctx, args).await
   }
 
   fn call_generate_bundle_meta(&self) -> Option<PluginHookMeta> {
@@ -385,9 +411,9 @@ impl<T: Plugin> Pluginable for T {
   async fn call_write_bundle(
     &self,
     ctx: &PluginContext,
-    bundle: &mut Vec<Output>,
+    args: &mut HookWriteBundleArgs,
   ) -> HookNoopReturn {
-    Plugin::write_bundle(self, ctx, bundle).await
+    Plugin::write_bundle(self, ctx, args).await
   }
 
   fn call_write_bundle_meta(&self) -> Option<PluginHookMeta> {
@@ -402,27 +428,40 @@ impl<T: Plugin> Pluginable for T {
     Plugin::close_bundle_meta(self)
   }
 
-  fn call_transform_ast(
+  async fn call_watch_change(
     &self,
     ctx: &PluginContext,
-    args: HookTransformAstArgs,
+    path: &str,
+    event: WatcherChangeKind,
+  ) -> HookNoopReturn {
+    Plugin::watch_change(self, ctx, path, event).await
+  }
+
+  fn call_watch_change_meta(&self) -> Option<PluginHookMeta> {
+    Plugin::watch_change_meta(self)
+  }
+
+  async fn call_close_watcher(&self, ctx: &PluginContext) -> HookNoopReturn {
+    Plugin::close_watcher(self, ctx).await
+  }
+
+  fn call_close_watcher_meta(&self) -> Option<PluginHookMeta> {
+    Plugin::close_watcher_meta(self)
+  }
+
+  async fn call_transform_ast(
+    &self,
+    ctx: &PluginContext,
+    args: HookTransformAstArgs<'_>,
   ) -> HookTransformAstReturn {
-    Plugin::transform_ast(self, ctx, args)
+    Plugin::transform_ast(self, ctx, args).await
   }
 
   fn call_transform_ast_meta(&self) -> Option<PluginHookMeta> {
     Plugin::transform_ast_meta(self)
   }
 
-  fn call_transform_filter(&self) -> anyhow::Result<Option<TransformHookFilter>> {
-    Plugin::transform_filter(self)
-  }
-
-  fn call_resolve_id_filter(&self) -> anyhow::Result<Option<ResolvedIdHookFilter>> {
-    Plugin::resolve_id_filter(self)
-  }
-
-  fn call_load_filter(&self) -> anyhow::Result<Option<LoadHookFilter>> {
-    Plugin::load_filter(self)
+  fn call_hook_usage(&self) -> HookUsage {
+    Plugin::register_hook_usage(self)
   }
 }

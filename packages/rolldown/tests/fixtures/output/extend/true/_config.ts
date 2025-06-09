@@ -1,10 +1,7 @@
-import { defineTest } from '@tests'
+import { defineTest } from 'rolldown-tests'
 import { expect } from 'vitest'
-let isComposingJs = false
+
 export default defineTest({
-  beforeTest(testKind) {
-    isComposingJs = testKind === 'compose-js-plugin'
-  },
   config: {
     output: {
       exports: 'named',
@@ -14,30 +11,16 @@ export default defineTest({
     },
   },
   afterTest: (output) => {
-    isComposingJs
-      ? expect(output.output[0].code).toMatchInlineSnapshot(`
-        "(function(exports) {
+    expect(output.output[0].code).toMatchInlineSnapshot(`
+      "(function(exports) {
 
-        "use strict";
 
-        //#region main.js
-        const main = "main";
+      //#region main.js
+      const main = "main";
 
-        //#endregion
-        exports.main = main
-        })(this.module = this.module || {});"
-      `)
-      : expect(output.output[0].code).toMatchInlineSnapshot(`
-        "(function(exports) {
-
-        "use strict";
-
-        //#region main.js
-        const main = "main";
-
-        //#endregion
-        exports.main = main
-        })(this.module = this.module || {});"
-      `)
+      //#endregion
+      exports.main = main;
+      })(this.module = this.module || {});"
+    `)
   },
 })

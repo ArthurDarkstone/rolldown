@@ -3,15 +3,20 @@ source: crates/rolldown_testing/src/integration_test.rs
 ---
 # Assets
 
-## entry_js.mjs
+## entry.js
 
 ```js
+'use 1';
+'use 2';
+'use 3';
+
+
+(function() {
+
 
 //#region entry.js
-"use 1";
-"use 2";
-"use 3";
 entry();
 
 //#endregion
+})();
 ```

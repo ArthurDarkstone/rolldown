@@ -1,60 +1,14 @@
 use oxc::{
-  ast::{
-    ast::{Expression, MemberExpression},
-    Comment, CommentKind,
-  },
+  ast::ast::{self, Expression, MemberExpression},
   semantic::ReferenceId,
-  span::{Atom, Span},
+  span::Atom,
   syntax::operator::{BinaryOperator, LogicalOperator, UnaryOperator, UpdateOperator},
 };
 use rolldown_common::AstScopes;
-
-use super::SideEffectDetector;
-
-impl<'a> SideEffectDetector<'a> {
-  /// Get the nearest comment before the `span`, return `None` if no leading comment is founded.
-  ///
-  ///  # Examples
-  /// ```javascript
-  /// /* valid comment for `a`  */ let a = 1;
-  ///
-  /// // valid comment for `b`
-  /// let b = 1;
-  ///
-  /// // valid comment for `c`
-  ///
-  ///
-  /// let c = 1;
-  ///
-  /// let d = 1; /* valid comment for `e` */
-  /// let e = 2
-  /// ```
-  /// Derived from https://github.com/oxc-project/oxc/blob/147864cfeb112df526bb83d5b8671b465c005066/crates/oxc_linter/src/utils/tree_shaking.rs#L204
-  pub fn leading_comment_for(&self, span: Span) -> Option<(&Comment, &str)> {
-    let comment = self.trivias.comments_range(..span.start).next_back()?;
-
-    let comment_text = comment.span.source_text(self.source);
-    // If there are non-whitespace characters between the `comment` and the `span`,
-    // we treat the `comment` not belongs to the `span`.
-    let range_text = Span::new(comment.span.end, span.start).source_text(self.source);
-    let only_whitespace = match comment.kind {
-      CommentKind::Line => range_text.trim().is_empty(),
-      CommentKind::Block => {
-        range_text
-          .strip_prefix("*/") // for multi-line comment
-          .is_some_and(|s| s.trim().is_empty())
-      }
-    };
-    if !only_whitespace {
-      return None;
-    }
-
-    Some((comment, comment_text))
-  }
-}
+use rolldown_ecmascript_utils::ExpressionExt;
 
 #[derive(PartialEq, Eq, Copy, Clone)]
-pub(crate) enum PrimitiveType {
+pub enum PrimitiveType {
   Null,
   Undefined,
   Boolean,
@@ -85,7 +39,7 @@ fn merged_known_primitive_types(
 }
 
 #[allow(clippy::too_many_lines)]
-pub(crate) fn known_primitive_type(scope: &AstScopes, expr: &Expression) -> PrimitiveType {
+pub fn known_primitive_type(scope: &AstScopes, expr: &Expression) -> PrimitiveType {
   match expr {
     Expression::NullLiteral(_) => PrimitiveType::Null,
     Expression::Identifier(id)
@@ -220,6 +174,12 @@ pub(crate) fn known_primitive_type(scope: &AstScopes, expr: &Expression) -> Prim
   }
 }
 
+pub fn can_change_strict_to_loose(scope: &AstScopes, a: &Expression, b: &Expression) -> bool {
+  let x = known_primitive_type(scope, a);
+  let y = known_primitive_type(scope, b);
+  x == y && !matches!(x, PrimitiveType::Unknown | PrimitiveType::Mixed)
+}
+
 pub fn is_primitive_literal(scope: &AstScopes, expr: &Expression) -> bool {
   match expr {
     Expression::NullLiteral(_)
@@ -228,14 +188,15 @@ pub fn is_primitive_literal(scope: &AstScopes, expr: &Expression) -> bool {
     | Expression::StringLiteral(_)
     | Expression::BigIntLiteral(_) => true,
     // Include `+1` / `-1`.
-    Expression::UnaryExpression(e)
-      if matches!(e.operator, |UnaryOperator::UnaryNegation| UnaryOperator::UnaryPlus)
-        && matches!(e.argument, Expression::NumericLiteral(_)) =>
-    {
-      true
-    }
+    Expression::UnaryExpression(e) => match e.operator {
+      UnaryOperator::Void => is_primitive_literal(scope, &e.argument),
+      UnaryOperator::UnaryNegation | UnaryOperator::UnaryPlus => {
+        matches!(e.argument, Expression::NumericLiteral(_))
+      }
+      _ => false,
+    },
     Expression::Identifier(id)
-      if id.name == "undefined" && scope.is_unresolved(id.reference_id.get().unwrap()) =>
+      if id.name == "undefined" && scope.is_unresolved(id.reference_id()) =>
     {
       true
     }
@@ -250,48 +211,42 @@ pub fn extract_member_expr_chain<'a>(
   if max_len == 0 {
     return None;
   }
+
   let mut chain = vec![];
-  match expr {
+  let mut cur = match expr {
     MemberExpression::ComputedMemberExpression(computed_expr) => {
       let Expression::StringLiteral(ref str) = computed_expr.expression else {
         return None;
       };
-      chain.push(str.value.clone());
-      let mut cur = &computed_expr.object;
-      extract_rest_member_expr_chain(&mut cur, &mut chain, max_len).map(|ref_id| (ref_id, chain))
+      chain.push(str.value);
+      &computed_expr.object
     }
     MemberExpression::StaticMemberExpression(static_expr) => {
-      let mut cur = &static_expr.object;
-      chain.push(static_expr.property.name.clone());
-      extract_rest_member_expr_chain(&mut cur, &mut chain, max_len).map(|ref_id| (ref_id, chain))
+      chain.push(static_expr.property.name);
+      &static_expr.object
     }
-    MemberExpression::PrivateFieldExpression(_) => None,
-  }
-}
+    MemberExpression::PrivateFieldExpression(_) => return None,
+  };
 
-fn extract_rest_member_expr_chain<'a>(
-  cur: &mut &'a Expression,
-  chain: &mut Vec<Atom<'a>>,
-  max_len: usize,
-) -> Option<ReferenceId> {
+  // extract_rest_member_expr_chain
   loop {
-    match &cur {
+    match cur {
       Expression::StaticMemberExpression(expr) => {
-        *cur = &expr.object;
-        chain.push(expr.property.name.clone());
+        cur = &expr.object;
+        chain.push(expr.property.name);
       }
       Expression::ComputedMemberExpression(expr) => {
         let Expression::StringLiteral(ref str) = expr.expression else {
           break;
         };
-        chain.push(str.value.clone());
-        *cur = &expr.object;
+        chain.push(str.value);
+        cur = &expr.object;
       }
       Expression::Identifier(ident) => {
-        chain.push(ident.name.clone());
+        chain.push(ident.name);
         let ref_id = ident.reference_id.get().expect("should have reference_id");
         chain.reverse();
-        return Some(ref_id);
+        return Some((ref_id, chain));
       }
       _ => break,
     }
@@ -302,4 +257,177 @@ fn extract_rest_member_expr_chain<'a>(
     }
   }
   None
+}
+
+/// https://github.com/evanw/esbuild/blob/d34e79e2a998c21bb71d57b92b0017ca11756912/internal/js_ast/js_ast_helpers.go#L2594-L2639
+pub fn is_side_effect_free_unbound_identifier_ref(
+  scope: &AstScopes,
+  value: &Expression,
+  guard_condition: &Expression,
+  mut is_yes_branch: bool,
+) -> Option<bool> {
+  let ident = value.as_identifier()?;
+  let is_unresolved = scope.is_unresolved(ident.reference_id());
+  if !is_unresolved {
+    return Some(false);
+  }
+  let bin_expr = guard_condition.as_binary_expression()?;
+  match bin_expr.operator {
+    BinaryOperator::StrictEquality
+    | BinaryOperator::StrictInequality
+    | BinaryOperator::Equality
+    | BinaryOperator::Inequality => {
+      let (mut ty_of, mut string) = (&bin_expr.left, &bin_expr.right);
+      if matches!(ty_of, Expression::StringLiteral(_)) {
+        std::mem::swap(&mut string, &mut ty_of);
+      }
+      let unary = ty_of.as_unary_expression()?;
+      if !(unary.operator == UnaryOperator::Typeof
+        && matches!(unary.argument, Expression::Identifier(_)))
+      {
+        return Some(false);
+      }
+      let string = string.as_string_literal()?;
+
+      if (string.value.eq("undefined") == is_yes_branch)
+        == matches!(
+          bin_expr.operator,
+          BinaryOperator::Inequality | BinaryOperator::StrictInequality
+        )
+      {
+        let type_of_value = unary.argument.as_identifier()?;
+        if type_of_value.name == ident.name {
+          return Some(true);
+        }
+      }
+    }
+    BinaryOperator::LessThan
+    | BinaryOperator::LessEqualThan
+    | BinaryOperator::GreaterThan
+    | BinaryOperator::GreaterEqualThan => {
+      let (mut ty_of, mut string) = (&bin_expr.left, &bin_expr.right);
+      if matches!(ty_of, Expression::StringLiteral(_)) {
+        std::mem::swap(&mut string, &mut ty_of);
+        is_yes_branch = !is_yes_branch;
+      }
+
+      let unary = ty_of.as_unary_expression()?;
+      if !(unary.operator == UnaryOperator::Typeof
+        && matches!(unary.argument, Expression::Identifier(_)))
+      {
+        return Some(false);
+      }
+
+      let string = string.as_string_literal()?;
+
+      if string.value == "u"
+        && is_yes_branch
+          == matches!(bin_expr.operator, BinaryOperator::LessThan | BinaryOperator::LessEqualThan)
+      {
+        let type_of_value = unary.argument.as_identifier()?;
+        if type_of_value.name == ident.name {
+          return Some(true);
+        }
+      }
+    }
+    _ => {}
+  }
+  Some(false)
+}
+
+/// https://github.com/evanw/esbuild/blob/d34e79e2a998c21bb71d57b92b0017ca11756912/internal/js_parser/js_parser.go#L16119-L16237
+pub fn maybe_side_effect_free_global_constructor(
+  scope: &AstScopes,
+  expr: &ast::NewExpression<'_>,
+) -> bool {
+  let Some(ident) = expr.callee.as_identifier() else {
+    return false;
+  };
+
+  if scope.is_unresolved(ident.reference_id()) {
+    match ident.name.as_str() {
+      "WeakSet" | "WeakMap" => match expr.arguments.len() {
+        0 => return true,
+        1 => {
+          let arg = &expr.arguments[0];
+          match arg {
+            ast::Argument::NullLiteral(_) => return true,
+            ast::Argument::Identifier(id)
+              if id.name == "undefined" && scope.is_unresolved(id.reference_id()) =>
+            {
+              return true;
+            }
+            ast::Argument::ArrayExpression(arr) if arr.elements.is_empty() => return true,
+            _ => {}
+          }
+        }
+        _ => {}
+      },
+      "Date" => match expr.arguments.len() {
+        0 => return true,
+        1 => {
+          let arg = &expr.arguments[0];
+          let known_primitive_type =
+            arg.as_expression().map(|item| known_primitive_type(scope, item));
+          if let Some(primitive_ty) = known_primitive_type {
+            if matches!(
+              primitive_ty,
+              PrimitiveType::Number
+                | PrimitiveType::String
+                | PrimitiveType::Null
+                | PrimitiveType::Undefined
+                | PrimitiveType::Boolean
+            ) {
+              return true;
+            }
+          }
+        }
+        _ => {}
+      },
+      "Set" => match expr.arguments.len() {
+        0 => return true,
+        1 => {
+          let arg = &expr.arguments[0];
+          match arg {
+            ast::Argument::NullLiteral(_) | ast::Argument::ArrayExpression(_) => return true,
+            ast::Argument::Identifier(id)
+              if id.name == "undefined" && scope.is_unresolved(id.reference_id()) =>
+            {
+              return true;
+            }
+            _ => {}
+          }
+        }
+        _ => {}
+      },
+      "Map" => match expr.arguments.len() {
+        0 => return true,
+        1 => {
+          let arg = &expr.arguments[0];
+          match arg {
+            ast::Argument::NullLiteral(_) => return true,
+            ast::Argument::Identifier(id)
+              if id.name == "undefined" && scope.is_unresolved(id.reference_id()) =>
+            {
+              return true;
+            }
+            ast::Argument::ArrayExpression(arr) => {
+              let all_entries_are_arrays = arr.elements.iter().all(|item| {
+                item
+                  .as_expression()
+                  .is_some_and(|expr| matches!(expr, ast::Expression::ArrayExpression(_)))
+              });
+              if all_entries_are_arrays {
+                return true;
+              }
+            }
+            _ => {}
+          }
+        }
+        _ => {}
+      },
+      _ => {}
+    }
+  }
+  false
 }

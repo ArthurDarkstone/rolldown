@@ -1,11 +1,7 @@
-use derivative::Derivative;
-use serde::Deserialize;
-
 use super::binding_asset_source::BindingAssetSource;
 
 #[napi_derive::napi(object)]
-#[derive(Deserialize, Default, Derivative)]
-#[derivative(Debug)]
+#[derive(Default, Debug)]
 pub struct BindingEmittedAsset {
   pub name: Option<String>,
   pub file_name: Option<String>,

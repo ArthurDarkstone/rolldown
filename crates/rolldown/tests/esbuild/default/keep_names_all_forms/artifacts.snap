@@ -3,15 +3,14 @@ source: crates/rolldown_testing/src/integration_test.rs
 ---
 # Assets
 
-## do-not-keep_js.mjs
+## do-not-keep.js
 
 ```js
 
 ```
-## keep_js.mjs
+## keep.js
 
 ```js
-
 //#region keep.js
 function fn() {}
 var fn = function() {};

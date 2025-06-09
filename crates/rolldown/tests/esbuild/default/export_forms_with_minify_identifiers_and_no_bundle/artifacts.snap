@@ -3,10 +3,10 @@ source: crates/rolldown_testing/src/integration_test.rs
 ---
 # Assets
 
-## a_js.mjs
+## a.js
 
 ```js
-import { b_exports } from "./b.mjs";
+import { b_exports } from "./b2.js";
 
 //#region a.js
 var a_default = 123;
@@ -14,17 +14,23 @@ var varName = 234;
 let letName = 234;
 const constName = 234;
 function Func2() {}
-class Class2 {}
+var Class2 = class {};
 function Func() {}
-class Class {}
+var Class = class {};
 
 //#endregion
 export { Class, Class as Cls, Class2 as Cls2, Func2 as Fn2, Func, constName, a_default as default, b_exports as fromB, letName, varName };
 ```
-## b.mjs
+## b.js
 
 ```js
+import { b_default } from "./b2.js";
 
+export { b_default as default };
+```
+## b2.js
+
+```js
 
 //#region b.js
 var b_exports = {};
@@ -34,39 +40,29 @@ function b_default() {}
 //#endregion
 export { b_default, b_exports };
 ```
-## b_js.mjs
+## c.js
 
 ```js
-import { b_default } from "./b.mjs";
-
-export { b_default as default };
-```
-## c_js.mjs
-
-```js
-
 //#region c.js
 function foo() {}
 
 //#endregion
 export { foo as default };
 ```
-## d_js.mjs
+## d.js
 
 ```js
-
 //#region d.js
-class d_default {}
+var d_default = class {};
 
 //#endregion
 export { d_default as default };
 ```
-## e_js.mjs
+## e.js
 
 ```js
-
 //#region e.js
-class Foo {}
+var Foo = class {};
 
 //#endregion
 export { Foo as default };

@@ -1,5 +1,5 @@
-import type { RolldownOutputChunk } from 'rolldown'
-import { defineTest } from '@tests'
+import type { OutputChunk as RolldownOutputChunk } from 'rolldown'
+import { defineTest } from 'rolldown-tests'
 import { expect } from 'vitest'
 
 export default defineTest({
@@ -13,7 +13,7 @@ export default defineTest({
   afterTest: (output) => {
     expect(
       output.output
-        .filter(({ type }) => type === 'chunk')
+        .filter((output) => output.type === 'chunk' && output.isEntry)
         .every((chunk) =>
           (chunk as RolldownOutputChunk).code.includes(
             "Object.defineProperty(exports, '__esModule', { value: true });",

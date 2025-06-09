@@ -3,10 +3,9 @@ source: crates/rolldown_testing/src/integration_test.rs
 ---
 # Assets
 
-## a_js.mjs
+## a.js
 
 ```js
-
 
 //#region b.js
 var require_b = __commonJS({ "b.js"(exports) {

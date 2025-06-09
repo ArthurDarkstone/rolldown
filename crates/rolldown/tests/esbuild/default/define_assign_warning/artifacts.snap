@@ -3,44 +3,42 @@ source: crates/rolldown_testing/src/integration_test.rs
 ---
 # Assets
 
-## read_js.mjs
+## read.js
 
 ```js
-
 //#region read.js
 console.log([
-	a,
-	b.c,
-	b["c"]
+	null,
+	null,
+	null
 ], [
-	d,
-	e.f,
-	e["f"]
+	ident,
+	ident,
+	ident
 ], [
-	g,
-	h.i,
-	h["i"]
+	dot.chain,
+	dot.chain,
+	dot.chain
 ]);
 
 //#endregion
 ```
-## write_js.mjs
+## write.js
 
 ```js
-
 //#region write.js
 console.log([
 	a = 0,
 	b.c = 0,
 	b["c"] = 0
 ], [
-	d = 0,
-	e.f = 0,
-	e["f"] = 0
+	ident = 0,
+	ident = 0,
+	ident = 0
 ], [
-	g = 0,
-	h.i = 0,
-	h["i"] = 0
+	dot.chain = 0,
+	dot.chain = 0,
+	dot.chain = 0
 ]);
 
 //#endregion

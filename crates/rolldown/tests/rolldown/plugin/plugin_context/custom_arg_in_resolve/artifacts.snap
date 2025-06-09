@@ -3,12 +3,12 @@ source: crates/rolldown_testing/src/integration_test.rs
 ---
 # Assets
 
-## entry.mjs
+## entry.js
 
 ```js
 
 //#region entry.js
-console.log(require("hello, world"));
+console.log(__require("hello, world"));
 
 //#endregion
 ```

@@ -6,36 +6,85 @@ source: crates/rolldown_testing/src/integration_test.rs
 ## UNRESOLVED_IMPORT
 
 ```text
-[UNRESOLVED_IMPORT] Warning: "foo" is imported by "import-computed.js", but could not be resolved – treating it as an external dependency.
+[UNRESOLVED_IMPORT] Warning: Could not resolve 'foo' in import-computed.js
+   ╭─[ import-computed.js:1:32 ]
+   │
+ 1 │ import { __proto__, bar } from 'foo'
+   │                                ──┬──  
+   │                                  ╰──── Module not found, treating it as an external dependency
+───╯
 
 ```
 ## UNRESOLVED_IMPORT
 
 ```text
-[UNRESOLVED_IMPORT] Warning: "foo" is imported by "import-normal.js", but could not be resolved – treating it as an external dependency.
+[UNRESOLVED_IMPORT] Warning: Could not resolve 'foo' in import-normal.js
+   ╭─[ import-normal.js:1:32 ]
+   │
+ 1 │ import { __proto__, bar } from 'foo'
+   │                                ──┬──  
+   │                                  ╰──── Module not found, treating it as an external dependency
+───╯
 
 ```
 # Assets
 
-## import_computed.mjs
+## import-computed.js
 
 ```js
-import "foo";
+import { __proto__, bar } from "foo";
 
+//#region import-computed.js
+function foo() {
+	console.log("this must not become \"{ __proto__: ... }\":", {
+		["__proto__"]: __proto__,
+		["bar"]: bar
+	});
+}
+
+//#endregion
 ```
-## import_normal.mjs
+## import-normal.js
 
 ```js
-import "foo";
+import { __proto__, bar } from "foo";
 
+//#region import-normal.js
+function foo() {
+	console.log("this must not become \"{ __proto__ }\":", {
+		__proto__: __proto__,
+		bar
+	});
+}
+
+//#endregion
 ```
-## local_computed.mjs
+## local-computed.js
 
 ```js
+//#region local-computed.js
+function foo(__proto__, bar) {
+	{
+		let __proto__$1, bar$1;
+		console.log("this must not become \"{ __proto__: ... }\":", {
+			["__proto__"]: __proto__$1,
+			["bar"]: bar$1
+		});
+	}
+}
 
+//#endregion
 ```
-## local_normal.mjs
+## local-normal.js
 
 ```js
+//#region local-normal.js
+function foo(__proto__, bar) {
+	console.log("this must not become \"{ __proto__ }\":", {
+		__proto__: __proto__,
+		bar
+	});
+}
 
+//#endregion
 ```

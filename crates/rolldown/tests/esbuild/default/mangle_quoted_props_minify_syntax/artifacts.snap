@@ -3,17 +3,16 @@ source: crates/rolldown_testing/src/integration_test.rs
 ---
 # Assets
 
-## keep_js.mjs
+## keep.js
 
 ```js
-
 //#region keep.js
 foo("_keepThisProperty");
-foo((x, "_keepThisProperty"));
+foo("_keepThisProperty");
 foo(x ? "_keepThisProperty" : "_keepThisPropertyToo");
 x[foo("_keepThisProperty")];
 x?.[foo("_keepThisProperty")];
-({ [foo("_keepThisProperty")]: x });
+foo("_keepThisProperty");
 (class {
 	[foo("_keepThisProperty")] = x;
 });
@@ -22,10 +21,9 @@ foo("_keepThisProperty") in x;
 
 //#endregion
 ```
-## mangle_js.mjs
+## mangle.js
 
 ```js
-
 //#region mangle.js
 x["_mangleThis"];
 x?.["_mangleThis"];
@@ -35,13 +33,14 @@ x[y ? z : "_mangleThis"];
 x?.[y ? z : "_mangleThis"];
 x[y, "_mangleThis"];
 x?.[y, "_mangleThis"];
-({ [(y, "_mangleThis")]: x });
+y;
 (class {
 	[(y, "_mangleThis")] = x;
 });
 var { "_mangleThis": x } = y;
 var { ["_mangleThis"]: x } = y;
 var { [(z, "_mangleThis")]: x } = y;
+"_mangleThis" in x;
 (y ? "_mangleThis" : z) in x;
 (y ? z : "_mangleThis") in x;
 (y, "_mangleThis") in x;

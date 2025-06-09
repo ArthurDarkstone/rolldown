@@ -1,6 +1,9 @@
 {
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
-  "extends": ["github>Boshen/renovate"],
+  "extends": [
+    "github>Boshen/renovate",
+    "helpers:pinGitHubActionDigestsToSemver"
+  ],
   "ignorePaths": [
     "**/node_modules/**",
     "**/examples/**",
@@ -8,27 +11,22 @@
   ],
   "packageRules": [
     {
-      "groupName": "napi-rs",
-      "matchPackagePrefixes": ["napi"],
+      "groupName": "tsdown",
+      "matchManagers": ["npm"],
+      "matchPackageNames": ["tsdown"],
       "schedule": ["at any time"]
     },
     {
-      "groupName": "oxlint",
+      "groupName": "rolldown-plugin-dts",
       "matchManagers": ["npm"],
-      "matchPackageNames": ["oxlint"],
+      "matchPackageNames": ["rolldown-plugin-dts"],
       "schedule": ["at any time"]
     },
     {
-      "groupName": "oxc",
-      "matchManagers": ["cargo"],
-      "matchPackagePrefixes": ["oxc"],
-      "enabled": false
-    },
-    {
-      "groupName": "npm-rolldown",
+      "groupName": "oxc-node",
       "matchManagers": ["npm"],
-      "automerge": false,
-      "automergeType": "pr"
+      "matchPackageNames": ["oxc-node"],
+      "schedule": ["at any time"]
     }
   ]
 }

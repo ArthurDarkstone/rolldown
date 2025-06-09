@@ -2,7 +2,7 @@ use std::{borrow::Cow, sync::Arc};
 
 use rolldown::{BundlerOptions, InputItem};
 use rolldown_plugin::{
-  HookResolveIdArgs, HookResolveIdOutput, HookResolveIdReturn, Plugin, PluginContext,
+  HookResolveIdArgs, HookResolveIdOutput, HookResolveIdReturn, HookUsage, Plugin, PluginContext,
 };
 use rolldown_testing::{abs_file_dir, integration_test::IntegrationTest, test_config::TestMeta};
 use sugar_path::SugarPath;
@@ -20,15 +20,19 @@ impl Plugin for ExternalCss {
     _ctx: &PluginContext,
     args: &HookResolveIdArgs<'_>,
   ) -> HookResolveIdReturn {
-    if args.specifier.as_path().extension().map_or(false, |ext| ext.eq_ignore_ascii_case("css")) {
+    if args.specifier.as_path().extension().is_some_and(|ext| ext.eq_ignore_ascii_case("css")) {
       let path = format!("rewritten-{}", args.specifier);
       return Ok(Some(HookResolveIdOutput {
-        id: path,
-        external: Some(true),
+        id: path.into(),
+        external: Some(true.into()),
         ..Default::default()
       }));
     }
     Ok(None)
+  }
+
+  fn register_hook_usage(&self) -> HookUsage {
+    HookUsage::ResolveId
   }
 }
 

@@ -1,4 +1,4 @@
-import { defineConfig } from 'rolldown'
+import { defineConfig } from 'rolldown';
 
 export default defineConfig({
   input: './index.js',
@@ -8,4 +8,18 @@ export default defineConfig({
     // aligns with Vite in the future.
     conditionNames: ['import'],
   },
-})
+  output: {
+    plugins: [
+      {
+        name: 'test-plugin',
+        outputOptions: function(options) {
+          options.banner = '/* banner */';
+          return options;
+        },
+      },
+    ],
+  },
+  experimental: {
+    enableComposingJsPlugins: true,
+  },
+});

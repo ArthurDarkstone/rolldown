@@ -1,18 +1,17 @@
 // cSpell:disable
-import { defineTest } from '@tests'
-import { getOutputAsset } from '@tests/utils'
+import { defineTest } from 'rolldown-tests'
+import { getOutputAsset } from 'rolldown-tests/utils'
 import { expect } from 'vitest'
 import fs from 'node:fs'
 import path from 'node:path'
+import type { PluginContext } from 'rolldown'
 
 let referenceId: string
 
 const ORIGINAL_FILE_NAME = 'original.txt'
-let isComposingJs = false
+
 export default defineTest({
-  beforeTest(testKind) {
-    isComposingJs = testKind === 'compose-js-plugin'
-  },
+  skipComposingJsPlugin: true,
   config: {
     output: {
       assetFileNames: '[name]-[hash].[ext]',
@@ -28,15 +27,12 @@ export default defineTest({
             source: 'emitted',
             originalFileName: ORIGINAL_FILE_NAME,
           })
+          testEmitFileThis(this.emitFile)
         },
         generateBundle() {
-          isComposingJs
-            ? expect(this.getFileName(referenceId)).toMatchInlineSnapshot(
-                `"_emitted-umwR9Fta.txt"`,
-              )
-            : expect(this.getFileName(referenceId)).toMatchInlineSnapshot(
-                `"_emitted-umwR9Fta.txt"`,
-              )
+          expect(this.getFileName(referenceId)).toMatchInlineSnapshot(
+            `"_emitted-C6bBH0W1.txt"`,
+          )
           // emit asset buffer source
           this.emitFile({
             type: 'asset',
@@ -52,24 +48,16 @@ export default defineTest({
     for (const asset of assets) {
       switch (asset.name) {
         case '+emitted.txt':
-          isComposingJs
-            ? expect(asset.fileName).toMatchInlineSnapshot(
-                `"_emitted-umwR9Fta.txt"`,
-              )
-            : expect(asset.fileName).toMatchInlineSnapshot(
-                `"_emitted-umwR9Fta.txt"`,
-              )
+          expect(asset.names).toStrictEqual(['+emitted.txt'])
+          expect(asset.fileName).toMatchInlineSnapshot(
+            `"_emitted-C6bBH0W1.txt"`,
+          )
           expect(asset.originalFileName).toBe(ORIGINAL_FILE_NAME)
+          expect(asset.originalFileNames).toStrictEqual([ORIGINAL_FILE_NAME])
           break
 
         case 'icon.png':
-          isComposingJs
-            ? expect(asset.fileName).toMatchInlineSnapshot(
-                `"icon-eUkSwvpV.png"`,
-              )
-            : expect(asset.fileName).toMatchInlineSnapshot(
-                `"icon-eUkSwvpV.png"`,
-              )
+          expect(asset.fileName).toMatchInlineSnapshot(`"icon-B5SRLC-l.png"`)
           break
 
         default:
@@ -78,3 +66,12 @@ export default defineTest({
     }
   },
 })
+
+function testEmitFileThis(emitFile: PluginContext['emitFile']) {
+  const emitted = emitFile({
+    type: 'asset',
+    name: 'emitFileThis.txt',
+    source: 'emitFileThis',
+  })
+  expect(emitted).toBeTypeOf('string')
+}

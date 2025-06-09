@@ -9,8 +9,9 @@ source: crates/rolldown_testing/src/integration_test.rs
 body {
   background-color: #f0f0f0;
 }
+
 ```
-## main.mjs
+## main.js
 
 ```js
 

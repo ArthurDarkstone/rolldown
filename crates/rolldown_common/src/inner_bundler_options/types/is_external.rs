@@ -1,7 +1,6 @@
-use std::fmt::Debug;
-use std::future::Future;
-use std::ops::Deref;
-use std::pin::Pin;
+use std::{future::Future, pin::Pin, sync::Arc};
+
+use derive_more::Debug;
 
 type Inner = dyn Fn(
     &str,         // specifier
@@ -12,15 +11,9 @@ type Inner = dyn Fn(
   + Sync
   + 'static;
 
-pub struct IsExternal(Box<Inner>);
-
-impl Deref for IsExternal {
-  type Target = Inner;
-
-  fn deref(&self) -> &Self::Target {
-    &*self.0
-  }
-}
+#[derive(Clone, Default, Debug)]
+#[debug("IsExternal(...)")]
+pub struct IsExternal(Option<Arc<Inner>>);
 
 impl IsExternal {
   pub fn from_closure<F>(f: F) -> Self
@@ -34,7 +27,7 @@ impl IsExternal {
       + Sync
       + 'static,
   {
-    Self(Box::new(f))
+    Self(Some(Arc::new(f)))
   }
 
   pub fn from_vec(value: Vec<String>) -> Self {
@@ -43,16 +36,23 @@ impl IsExternal {
       Box::pin(async move { Ok(result) })
     })
   }
+
+  pub async fn call(
+    &self,
+    specifier: &str,
+    importer: Option<&str>,
+    is_resolved: bool,
+  ) -> anyhow::Result<bool> {
+    Ok(if let Some(is_external) = &self.0 {
+      is_external(specifier, importer, is_resolved).await?
+    } else {
+      false
+    })
+  }
 }
 
 impl From<Vec<String>> for IsExternal {
   fn from(value: Vec<String>) -> Self {
     IsExternal::from_vec(value)
-  }
-}
-
-impl Debug for IsExternal {
-  fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-    write!(f, "IsExternal(...)")
   }
 }

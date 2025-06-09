@@ -2,23 +2,24 @@ use std::fmt::Debug;
 
 use crate::EcmaCompiler;
 use arcstr::ArcStr;
-use oxc::ast::Trivias;
-use oxc::{allocator::Allocator, ast::ast::Program, span::SourceType};
+use oxc::{
+  allocator::{Allocator, CloneIn},
+  ast::ast::{Comment, Program},
+  span::SourceType,
+};
+use program_cell::{ProgramCellDependent, ProgramCellOwner};
 
 use self::program_cell::ProgramCell;
 
-mod gen;
+mod r#gen;
 mod helpers;
 pub mod program_cell;
-pub use gen::ToSourceString;
+pub use r#gen::ToSourceString;
 
 /// - To access `&mut ast::Program`, use `ast.program.with_mut(|fields| { fields.program; })`.
-
 pub struct EcmaAst {
   pub program: ProgramCell,
-  pub trivias: Trivias,
   pub source_type: SourceType,
-  pub contains_use_strict: bool,
 }
 
 impl EcmaAst {
@@ -32,6 +33,28 @@ impl EcmaAst {
 
   pub fn program(&self) -> &Program {
     &self.program.borrow_dependent().program
+  }
+
+  pub fn comments(&self) -> &oxc::allocator::Vec<'_, Comment> {
+    &self.program.borrow_dependent().program.comments
+  }
+
+  /// Clone the `Program` with another `Allocator`.
+  /// and copy rest fields, this is used to cache the Ast in incremental compilation
+  /// use another `Allocator` to avoid memory leak because.
+  #[must_use]
+  pub fn clone_with_another_arena(&self) -> EcmaAst {
+    let program = ProgramCell::new(
+      ProgramCellOwner {
+        source: self.source().clone(),
+        allocator: Allocator::with_capacity(self.allocator().used_bytes()),
+      },
+      |owner| {
+        let program = self.program().clone_in(&owner.allocator);
+        ProgramCellDependent { program }
+      },
+    );
+    EcmaAst { program, source_type: self.source_type }
   }
 }
 

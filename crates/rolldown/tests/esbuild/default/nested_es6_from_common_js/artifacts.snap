@@ -3,10 +3,10 @@ source: crates/rolldown_testing/src/integration_test.rs
 ---
 # Assets
 
-## entry_js.mjs
+## entry.js
 
 ```js
-import { default as assert } from "node:assert";
+import assert from "node:assert";
 
 
 //#region foo.js
@@ -19,9 +19,7 @@ var require_foo = __commonJS({ "foo.js"(exports) {
 //#endregion
 //#region entry.js
 var import_foo = __toESM(require_foo());
-(() => {
-	assert.equal((0, import_foo.fn)(), 123);
-})();
+assert.equal((0, import_foo.fn)(), 123);
 
 //#endregion
 ```

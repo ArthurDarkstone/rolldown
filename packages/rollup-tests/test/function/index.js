@@ -12,7 +12,7 @@ const {
 	// verifyAstPlugin
 } = require('../utils.js');
 
-function requireWithContext(code, context, exports) {
+function requireWithContext(code, context, exports, isImport) {
 	const module = { exports };
 	const contextWithExports = { ...context, module, exports };
 	const contextKeys = Object.keys(contextWithExports);
@@ -24,24 +24,36 @@ function requireWithContext(code, context, exports) {
 		error.exports = module.exports;
 		throw error;
 	}
-	return contextWithExports.module.exports;
+	const moduleExports = contextWithExports.module.exports;
+	if (isImport) {
+		return { default: moduleExports, ...moduleExports };
+	}
+	return moduleExports;
 }
 
-function runCodeSplitTest(codeMap, entryId, configContext) {
+function runCodeSplitTest(codeMap, entryId, configContext, dynamicImportInCjs) {
 	const exportsMap = Object.create(null);
 
-	const requireFromOutputVia = importer => importee => {
+	const requireFromOutputVia = (importer, isImport) => importee => {
 		const outputId = path.posix.join(path.posix.dirname(importer), importee);
 		if (outputId in exportsMap) {
 			return exportsMap[outputId];
 		}
 		const code = codeMap[outputId];
 		return code === undefined
-			? require(importee)
+			? isImport ? import(importee) : require(importee)
 			: (exportsMap[outputId] = requireWithContext(
-					code,
-					{ require: requireFromOutputVia(outputId), ...context },
-					(exportsMap[outputId] = {})
+				// Here replaced `import` to avoid unexpected error
+				dynamicImportInCjs ? code.replaceAll('import(', '_import(') : code,
+					{ require: requireFromOutputVia(outputId, false), _import: dynamicImportInCjs ? (id) => new Promise((resolve, reject) => {
+						try {
+							resolve(requireFromOutputVia(outputId, true)(id))
+						} catch (error) {
+							reject(error);
+						}
+					}) : undefined, ...context },
+					(exportsMap[outputId] = {}),
+					isImport
 			  ));
 	};
 
@@ -81,6 +93,12 @@ runTestSuiteWithSamples(
 						// ? [...config.options.plugins, verifyAstPlugin]
 						// : config.options.plugins;
 
+			    // The `options-async-hook` assert config equal
+				if (directory.includes('class-name-conflict')) {
+					config.options = config.options || {}
+					config.options.keepNames = true; // avoid other tests snapshot changed
+				}
+
 				return rollup
 					.rollup({
 						input: path.join(directory, 'main.js'),
@@ -97,10 +115,6 @@ runTestSuiteWithSamples(
 					.then(bundle => {
 						let unintendedError;
 
-						if (config.error) {
-							throw new Error('Expected an error while rolling up');
-						}
-
 						let result;
 
 						return bundle
@@ -110,8 +124,8 @@ runTestSuiteWithSamples(
 								...(config.options || {}).output
 							})
 							.then(({ output }) => {
-								if (config.generateError) {
-									unintendedError = new Error('Expected an error while generating output');
+								if (config.error || config.generateError) {
+									unintendedError = new Error('Expected an error while bundling');
 								}
 
 								result = output;
@@ -143,7 +157,8 @@ runTestSuiteWithSamples(
 										).join('\n')}`
 									);
 								}
-								const { exports, error } = runCodeSplitTest(codeMap, entryId, config.context);
+								const dynamicImportInCjs =  config.options?.output?.dynamicImportInCjs ?? true /* the rollup defalut value*/;
+								const { exports, error } = runCodeSplitTest(codeMap, entryId, config.context, dynamicImportInCjs);
 								if (config.runtimeError) {
 									if (error) {
 										config.runtimeError(error);

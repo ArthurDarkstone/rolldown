@@ -1,43 +1,6 @@
-<<<<<<< HEAD
+# Reason
+1. no sideEffect comment detect
 # Diff
-## /out/stmt-fn.js
-### esbuild
-```js
-// @__NO_SIDE_EFFECTS__
-function f(y) {
-  sideEffect(y);
-}
-// @__NO_SIDE_EFFECTS__
-function* g(y) {
-  sideEffect(y);
-}
-onlyKeepThisIdentifier;
-onlyKeepThisIdentifier;
-x(/* @__PURE__ */ f("keepThisCall"));
-x(/* @__PURE__ */ g("keepThisCall"));
-```
-### rolldown
-```js
-
-```
-### diff
-```diff
-===================================================================
---- esbuild	/out/stmt-fn.js
-+++ rolldown	
-@@ -1,10 +0,0 @@
--function f(y) {
--    sideEffect(y);
--}
--function* g(y) {
--    sideEffect(y);
--}
--onlyKeepThisIdentifier;
--onlyKeepThisIdentifier;
--x(f("keepThisCall"));
--x(g("keepThisCall"));
-
-```
 ## /out/stmt-local.js
 ### esbuild
 ```js
@@ -53,23 +16,36 @@ x(/* @__PURE__ */ g("keepThisCall"));
 ```
 ### rolldown
 ```js
+//#region stmt-local.js
+const f = /* @__NO_SIDE_EFFECTS__ */ function(y) {
+	sideEffect(y);
+};
+const g = /* @__NO_SIDE_EFFECTS__ */ function* (y) {
+	sideEffect(y);
+};
+onlyKeepThisIdentifier;
+onlyKeepThisIdentifier;
+x(/* @__PURE__ */ f("keepThisCall"));
+x(/* @__PURE__ */ g("keepThisCall"));
 
+//#endregion
 ```
 ### diff
 ```diff
 ===================================================================
 --- esbuild	/out/stmt-local.js
-+++ rolldown	
-@@ -1,9 +0,0 @@
++++ rolldown	stmt-local.js
+@@ -1,7 +1,8 @@
 -const f = function (y) {
--    sideEffect(y);
++var f = function (y) {
+     sideEffect(y);
 -}, g = function* (y) {
--    sideEffect(y);
--};
--onlyKeepThisIdentifier;
--onlyKeepThisIdentifier;
--x(f("keepThisCall"));
--x(g("keepThisCall"));
++};
++var g = function* (y) {
+     sideEffect(y);
+ };
+ onlyKeepThisIdentifier;
+ onlyKeepThisIdentifier;
 
 ```
 ## /out/expr-fn.js
@@ -87,23 +63,36 @@ x(/* @__PURE__ */ g("keepThisCall"));
 ```
 ### rolldown
 ```js
+//#region expr-fn.js
+const f = /* @__NO_SIDE_EFFECTS__ */ function(y) {
+	sideEffect(y);
+};
+const g = /* @__NO_SIDE_EFFECTS__ */ function* (y) {
+	sideEffect(y);
+};
+onlyKeepThisIdentifier;
+onlyKeepThisIdentifier;
+x(/* @__PURE__ */ f("keepThisCall"));
+x(/* @__PURE__ */ g("keepThisCall"));
 
+//#endregion
 ```
 ### diff
 ```diff
 ===================================================================
 --- esbuild	/out/expr-fn.js
-+++ rolldown	
-@@ -1,9 +0,0 @@
++++ rolldown	expr-fn.js
+@@ -1,7 +1,8 @@
 -const f = function (y) {
--    sideEffect(y);
++var f = function (y) {
+     sideEffect(y);
 -}, g = function* (y) {
--    sideEffect(y);
--};
--onlyKeepThisIdentifier;
--onlyKeepThisIdentifier;
--x(f("keepThisCall"));
--x(g("keepThisCall"));
++};
++var g = function* (y) {
+     sideEffect(y);
+ };
+ onlyKeepThisIdentifier;
+ onlyKeepThisIdentifier;
 
 ```
 ## /out/stmt-export-default-fn.js
@@ -118,18 +107,29 @@ x(/* @__PURE__ */ f("keepThisCall"));
 ```
 ### rolldown
 ```js
+//#region stmt-export-default-fn.js
+/* @__NO_SIDE_EFFECTS__ */
+function f(y) {
+	sideEffect(y);
+}
+onlyKeepThisIdentifier;
+x(/* @__PURE__ */ f("keepThisCall"));
 
+//#endregion
+export { f as default };
 ```
 ### diff
 ```diff
 ===================================================================
 --- esbuild	/out/stmt-export-default-fn.js
-+++ rolldown	
-@@ -1,5 +0,0 @@
++++ rolldown	stmt-export-default-fn.js
+@@ -1,5 +1,6 @@
 -export default function f(y) {
--    sideEffect(y);
--}
--onlyKeepThisIdentifier;
--x(f("keepThisCall"));
++function f(y) {
+     sideEffect(y);
+ }
+ onlyKeepThisIdentifier;
+ x(f("keepThisCall"));
++export {f as default};
 
 ```

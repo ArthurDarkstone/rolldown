@@ -1,21 +1,21 @@
+use std::borrow::Cow;
 use std::ops::Range;
-use std::{cmp::Reverse, collections::HashMap, sync::LazyLock};
+use std::{cmp::Reverse, sync::Arc};
 
-// use fancy_regex::Regex;
-use regex::Regex;
-use rolldown_plugin::{HookRenderChunkOutput, HookTransformOutput, Plugin};
+use rolldown_plugin::{HookRenderChunkOutput, HookTransformOutput, HookUsage, Plugin};
 use rustc_hash::FxHashMap;
-use string_wizard::MagicString;
+use string_wizard::{MagicString, SourceMapOptions};
 
 use crate::utils::expand_typeof_replacements;
 
 #[derive(Debug, Default)]
 pub struct ReplaceOptions {
-  pub values: HashMap</* Target */ String, /* Replacement */ String>,
+  pub values: FxHashMap</* Target */ String, /* Replacement */ String>,
   /// Default to `("\\b", "\\b(?!\\.)")`. To prevent `typeof window.document` from being replaced by config item `typeof window` => `"object"`.
   pub delimiters: Option<(String, String)>,
   pub prevent_assignment: bool,
   pub object_guards: bool,
+  pub sourcemap: bool,
 }
 
 // We don't reuse `HybridRegex` in `rolldown_utils`, since
@@ -31,13 +31,31 @@ pub struct ReplacePlugin {
   matcher: HybridRegex,
   prevent_assignment: bool,
   values: FxHashMap</* Target */ String, /* Replacement */ String>,
+  sourcemap: bool,
 }
 
-static NON_ASSIGNMENT_MATCHER: LazyLock<Regex> =
-  LazyLock::new(|| Regex::new("\\b(?:const|let|var)\\s+$").expect("Should be valid regex"));
+// Checks if the given string ends with a variable declaration keyword (const, let, var)
+// followed by whitespace, which would indicate the start of a variable declaration.
+fn is_variable_declaration_prefix(s: &str) -> bool {
+  // First check if there's any whitespace at the end
+  if !s.ends_with(|c: char| c.is_whitespace()) {
+    return false;
+  }
+
+  // Trim the trailing whitespace
+  let s = s.trim_end();
+
+  // Check for word boundary before the keywords
+  (s.ends_with("const")
+    && (s.len() == 5 || !s.chars().nth(s.len() - 6).unwrap_or(' ').is_alphanumeric()))
+    || (s.ends_with("let")
+      && (s.len() == 3 || !s.chars().nth(s.len() - 4).unwrap_or(' ').is_alphanumeric()))
+    || (s.ends_with("var")
+      && (s.len() == 3 || !s.chars().nth(s.len() - 4).unwrap_or(' ').is_alphanumeric()))
+}
 
 impl ReplacePlugin {
-  pub fn new(values: HashMap<String, String>) -> Self {
+  pub fn new(values: FxHashMap<String, String>) -> Self {
     Self::with_options(ReplaceOptions { values, ..Default::default() })
   }
 
@@ -65,6 +83,7 @@ impl ReplacePlugin {
       matcher,
       prevent_assignment: options.prevent_assignment,
       values: values.into_iter().collect(),
+      sourcemap: options.sourcemap,
     }
   }
 
@@ -106,7 +125,7 @@ impl ReplacePlugin {
   fn look_around_assert(&self, code: &str, matched_range: Range<usize>) -> bool {
     if self.prevent_assignment {
       let before = &code[..matched_range.start];
-      if NON_ASSIGNMENT_MATCHER.is_match(before) {
+      if is_variable_declaration_prefix(before) {
         return true;
       }
     }
@@ -137,7 +156,7 @@ impl ReplacePlugin {
       let Some(Some(matched)) = captures.captures.first() else {
         break;
       };
-      if self.prevent_assignment && NON_ASSIGNMENT_MATCHER.is_match(&code[0..matched.start]) {
+      if self.prevent_assignment && is_variable_declaration_prefix(&code[0..matched.start]) {
         continue;
       }
       let Some(replacement) = self.values.get(&code[matched.clone()]) else {
@@ -152,18 +171,25 @@ impl ReplacePlugin {
 
 impl Plugin for ReplacePlugin {
   fn name(&self) -> std::borrow::Cow<'static, str> {
-    "builtin:replace".into()
+    Cow::Borrowed("builtin:replace")
   }
 
   async fn transform(
     &self,
-    _ctx: &rolldown_plugin::TransformPluginContext<'_>,
+    _ctx: rolldown_plugin::SharedTransformPluginContext,
     args: &rolldown_plugin::HookTransformArgs<'_>,
   ) -> rolldown_plugin::HookTransformReturn {
     let mut magic_string = MagicString::new(args.code);
     if self.try_replace(args.code, &mut magic_string) {
       return Ok(Some(HookTransformOutput {
         code: Some(magic_string.to_string()),
+        map: self.sourcemap.then(|| {
+          magic_string.source_map(SourceMapOptions {
+            hires: string_wizard::Hires::True,
+            include_content: false,
+            source: Arc::from(args.id),
+          })
+        }),
         ..Default::default()
       }));
     }
@@ -177,8 +203,21 @@ impl Plugin for ReplacePlugin {
   ) -> rolldown_plugin::HookRenderChunkReturn {
     let mut magic_string = MagicString::new(&args.code);
     if self.try_replace(&args.code, &mut magic_string) {
-      return Ok(Some(HookRenderChunkOutput { code: magic_string.to_string(), map: None }));
+      return Ok(Some(HookRenderChunkOutput {
+        code: magic_string.to_string(),
+        map: self.sourcemap.then(|| {
+          magic_string.source_map(SourceMapOptions {
+            hires: string_wizard::Hires::True,
+            include_content: false,
+            source: Arc::from(args.chunk.filename.as_str()),
+          })
+        }),
+      }));
     }
     Ok(None)
+  }
+
+  fn register_hook_usage(&self) -> HookUsage {
+    HookUsage::Transform | HookUsage::RenderChunk
   }
 }

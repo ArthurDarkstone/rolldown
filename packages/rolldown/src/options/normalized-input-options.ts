@@ -1,21 +1,37 @@
-import type {
-  LogLevelOption,
-  RollupLog,
-  NormalizedInputOptions as RollupNormalizedInputOptions,
-} from '../rollup'
-import type { InputOptions } from './input-options'
-import type { RolldownPlugin } from '../plugin'
-import type { LogLevel } from '../log/logging'
-import { NormalizedTreeshakingOptions } from '../treeshake'
+import type { InputOptions } from '..';
+import { BindingNormalizedOptions } from '../binding';
+import type { LogHandler } from '../log/log-handler';
 
-export interface NormalizedInputOptions
-  extends Omit<InputOptions, 'treeshake'> {
-  input: RollupNormalizedInputOptions['input']
-  plugins: RolldownPlugin[]
-  onLog: (level: LogLevel, log: RollupLog) => void
-  logLevel: LogLevelOption
-  // After normalized, `false` will be converted to `undefined`, otherwise, default value will be assigned
-  // Because it is hard to represent Enum in napi, ref: https://github.com/napi-rs/napi-rs/issues/507
-  // So we use `undefined | NormalizedTreeshakingOptions` (or Option<NormalizedTreeshakingOptions> in rust side), to represent `false | NormalizedTreeshakingOptions`
-  treeshake?: NormalizedTreeshakingOptions
+export interface NormalizedInputOptions {
+  input: string[] | Record<string, string>;
+  cwd: string | undefined;
+  platform: InputOptions['platform'];
+  shimMissingExports: boolean;
+}
+
+// TODO: I guess we make these getters enumerable so it act more like a plain object
+export class NormalizedInputOptionsImpl implements NormalizedInputOptions {
+  inner: BindingNormalizedOptions;
+  constructor(
+    inner: BindingNormalizedOptions,
+    public onLog: LogHandler,
+  ) {
+    this.inner = inner;
+  }
+
+  get shimMissingExports(): boolean {
+    return this.inner.shimMissingExports;
+  }
+
+  get input(): string[] | Record<string, string> {
+    return this.inner.input;
+  }
+
+  get cwd(): string | undefined {
+    return this.inner.cwd ?? undefined;
+  }
+
+  get platform(): 'browser' | 'node' | 'neutral' {
+    return this.inner.platform;
+  }
 }

@@ -1,14 +1,15 @@
-import { defineTest } from '@tests'
+import { defineTest } from 'rolldown-tests'
 import { expect, vi } from 'vitest'
 
 const fn = vi.fn()
-import { getOutputChunkNames } from '@tests/utils'
+import { getOutputChunkNames } from 'rolldown-tests/utils'
 
 export default defineTest({
   config: {
     input: ['main.js', 'entry.js'],
     plugins: [
       {
+        name: 'virtual-module',
         resolveId(id) {
           if (id === '\0module') {
             return id
@@ -26,9 +27,9 @@ export default defineTest({
   afterTest(output) {
     // cSpell:disable
     expect(getOutputChunkNames(output)).toStrictEqual([
-      'main.js',
       'entry.js',
-      '_module-KtCeJTRH.js',
+      'main.js',
+      '_module-iGCt1YOi.js',
     ])
   },
 })

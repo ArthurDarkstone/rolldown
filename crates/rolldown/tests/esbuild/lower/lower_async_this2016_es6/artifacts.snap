@@ -3,16 +3,15 @@ source: crates/rolldown_testing/src/integration_test.rs
 ---
 # Assets
 
-## entry_js.mjs
+## entry.js
 
 ```js
-
 //#region other.js
 let bar = async () => {};
 
 //#endregion
 //#region entry.js
-let foo = async () => this;
+let foo = async () => void 0;
 
 //#endregion
 export { bar, foo };

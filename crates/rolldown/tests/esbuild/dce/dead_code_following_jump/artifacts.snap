@@ -3,10 +3,9 @@ source: crates/rolldown_testing/src/integration_test.rs
 ---
 # Assets
 
-## entry_js.mjs
+## entry.js
 
 ```js
-
 //#region entry.js
 function testReturn() {
 	return y + z();
@@ -28,14 +27,10 @@ function testBreak() {
 			y + z();
 			break;
 		}
-		if (FAIL) return FAIL;
-		if (x) {
-			var y;
-		}
 		function z() {
 			KEEP_ME();
 		}
-		return FAIL;
+		var y;
 	}
 }
 function testContinue() {
@@ -44,14 +39,10 @@ function testContinue() {
 			y + z();
 			continue;
 		}
-		if (FAIL) return FAIL;
-		if (x) {
-			var y;
-		}
 		function z() {
 			KEEP_ME();
 		}
-		return FAIL;
+		var y;
 	}
 }
 function testStmts() {
@@ -66,7 +57,7 @@ function testStmts() {
 		h,
 		i
 	];
-	var a, b, f, g, h, i;
+	var a, b, c, d, e, f, g, h, i;
 }
 testReturn();
 testThrow();

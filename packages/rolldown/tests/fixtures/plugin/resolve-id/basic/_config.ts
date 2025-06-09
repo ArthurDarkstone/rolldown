@@ -1,4 +1,4 @@
-import { defineTest } from '@tests'
+import { defineTest } from 'rolldown-tests'
 import { expect, vi } from 'vitest'
 import path from 'node:path'
 
@@ -36,18 +36,17 @@ export default defineTest({
               external: false,
             }
           }
-          // TODO: external dynamic import will loop
-          // if (id === 'dynamic') {
-          //   expect(importer).toStrictEqual(entry)
-          //   expect(options).toMatchObject({
-          //     isEntry: false,
-          //     kind: 'dynamic-import'
-          //   })
-          //   return {
-          //     id,
-          //     external: true
-          //   }
-          // }
+          if (id === 'dynamic') {
+            expect(importer).toStrictEqual(entry)
+            expect(options).toMatchObject({
+              isEntry: false,
+              kind: 'dynamic-import',
+            })
+            return {
+              id,
+              external: true,
+            }
+          }
           if (id === entry) {
             expect(importer).toBeUndefined()
             expect(options).toMatchObject({
@@ -59,7 +58,7 @@ export default defineTest({
       },
     ],
   },
-  afterTest: (output) => {
-    expect(resolveIdFn).toHaveBeenCalledTimes(3)
+  afterTest: () => {
+    expect(resolveIdFn).toHaveBeenCalledTimes(4)
   },
 })

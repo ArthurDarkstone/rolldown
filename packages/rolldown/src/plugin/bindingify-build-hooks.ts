@@ -1,342 +1,399 @@
-import { normalizeHook } from '../utils/normalize-hook'
 import type {
+  BindingHookFilter,
   BindingHookResolveIdOutput,
   BindingPluginOptions,
-} from '../binding'
+} from '../binding';
+import { normalizeHook } from '../utils/normalize-hook';
 
-import type {
-  hookFilterExtension,
-  Plugin,
-  PluginHooks,
-  PrivateResolveIdExtraOptions,
-} from './index'
-import { NormalizedInputOptions } from '../options/normalized-input-options'
-import { isEmptySourcemapFiled } from '../utils/transform-sourcemap'
-import { transformModuleInfo } from '../utils/transform-module-info'
-import path from 'node:path'
-import { bindingifySourcemap, ExistingRawSourceMap } from '../types/sourcemap'
+import path from 'node:path';
+import { SYMBOL_FOR_RESOLVE_CALLER_THAT_SKIP_SELF } from '../constants/plugin-context';
+import { NormalizedInputOptionsImpl } from '../options/normalized-input-options';
 import {
-  PluginContext,
-  PrivatePluginContextResolveOptions,
-} from './plugin-context'
-import { TransformPluginContext } from './transform-plugin-context'
-import { bindingifySideEffects } from '../utils/transform-side-effects'
-import { PluginContextData } from './plugin-context-data'
+  bindingifySourcemap,
+  type ExistingRawSourceMap,
+} from '../types/sourcemap';
+import { normalizeErrors } from '../utils/error';
+import { transformModuleInfo } from '../utils/transform-module-info';
+import { bindingifySideEffects } from '../utils/transform-side-effects';
 import {
-  PluginHookWithBindingExt,
-  bindingifyPluginHookMeta,
-} from './bindingify-plugin-hook-meta'
-import { SYMBOL_FOR_RESOLVE_CALLER_THAT_SKIP_SELF } from '../constants/plugin-context'
+  isEmptySourcemapFiled,
+  normalizeTransformHookSourcemap,
+} from '../utils/transform-sourcemap';
 import {
   bindingifyLoadFilter,
   bindingifyResolveIdFilter,
   bindingifyTransformFilter,
-} from './bindingify-hook-filter'
+} from './bindingify-hook-filter';
+import type { BindingifyPluginArgs } from './bindingify-plugin';
+import {
+  bindingifyPluginHookMeta,
+  type PluginHookWithBindingExt,
+} from './bindingify-plugin-hook-meta';
+import type {
+  PluginHooks,
+  PrivateResolveIdExtraOptions,
+  SourceDescription,
+} from './index';
+import {
+  PluginContextImpl,
+  type PrivatePluginContextResolveOptions,
+} from './plugin-context';
+import { TransformPluginContextImpl } from './transform-plugin-context';
 
 export function bindingifyBuildStart(
-  plugin: Plugin,
-  options: NormalizedInputOptions,
-  pluginContextData: PluginContextData,
+  args: BindingifyPluginArgs,
 ): PluginHookWithBindingExt<BindingPluginOptions['buildStart']> {
-  const hook = plugin.buildStart
+  const hook = args.plugin.buildStart;
   if (!hook) {
-    return {}
+    return {};
   }
-  const { handler, meta } = normalizeHook(hook)
+  const { handler, meta } = normalizeHook(hook);
 
   return {
-    plugin: async (ctx) => {
+    plugin: async (ctx, opts) => {
       await handler.call(
-        new PluginContext(options, ctx, plugin, pluginContextData),
-        options,
-      )
+        new PluginContextImpl(
+          args.outputOptions,
+          ctx,
+          args.plugin,
+          args.pluginContextData,
+          args.onLog,
+          args.logLevel,
+          args.watchMode,
+        ),
+        new NormalizedInputOptionsImpl(opts, args.onLog),
+      );
     },
     meta: bindingifyPluginHookMeta(meta),
-  }
+  };
 }
-
 export function bindingifyBuildEnd(
-  plugin: Plugin,
-  options: NormalizedInputOptions,
-  pluginContextData: PluginContextData,
+  args: BindingifyPluginArgs,
 ): PluginHookWithBindingExt<BindingPluginOptions['buildEnd']> {
-  const hook = plugin.buildEnd
+  const hook = args.plugin.buildEnd;
   if (!hook) {
-    return {}
+    return {};
   }
-  const { handler, meta } = normalizeHook(hook)
+  const { handler, meta } = normalizeHook(hook);
 
   return {
     plugin: async (ctx, err) => {
       await handler.call(
-        new PluginContext(options, ctx, plugin, pluginContextData),
-        err ? new Error(err) : undefined,
-      )
+        new PluginContextImpl(
+          args.outputOptions,
+          ctx,
+          args.plugin,
+          args.pluginContextData,
+          args.onLog,
+          args.logLevel,
+          args.watchMode,
+        ),
+        err ? normalizeErrors(err) : undefined,
+      );
     },
     meta: bindingifyPluginHookMeta(meta),
-  }
+  };
 }
 
 export function bindingifyResolveId(
-  plugin: Plugin,
-  normalizedOptions: NormalizedInputOptions,
-  pluginContextData: PluginContextData,
+  args: BindingifyPluginArgs,
 ): PluginHookWithBindingExt<
   BindingPluginOptions['resolveId'],
-  hookFilterExtension<'transform'>
+  BindingHookFilter | undefined
 > {
-  const hook = plugin.resolveId as unknown as PluginHooks['resolveId']
+  const hook = args.plugin.resolveId as unknown as PluginHooks['resolveId'];
   if (!hook) {
-    return {}
+    return {};
   }
-  const { handler, meta, options } = normalizeHook(hook)
+  const { handler, meta, options } = normalizeHook(hook);
 
   return {
     plugin: async (ctx, specifier, importer, extraOptions) => {
-      // `contextResolveOptions` comes from `PluginContext.resolve(.., .., options)` method if this hook is triggered by `PluginContext.resolve`.
-      const contextResolveOptions =
-        extraOptions.custom != null
-          ? (pluginContextData.getSavedResolveOptions(
-              extraOptions.custom,
-            ) as PrivatePluginContextResolveOptions)
-          : undefined
+      const contextResolveOptions = extraOptions.custom != null
+        ? (args.pluginContextData.getSavedResolveOptions(
+          extraOptions.custom,
+        ) as PrivatePluginContextResolveOptions)
+        : undefined;
 
       const newExtraOptions: PrivateResolveIdExtraOptions = {
         ...extraOptions,
         custom: contextResolveOptions?.custom,
-        [SYMBOL_FOR_RESOLVE_CALLER_THAT_SKIP_SELF]:
-          contextResolveOptions?.[SYMBOL_FOR_RESOLVE_CALLER_THAT_SKIP_SELF],
-      }
+        [SYMBOL_FOR_RESOLVE_CALLER_THAT_SKIP_SELF]: contextResolveOptions
+          ?.[SYMBOL_FOR_RESOLVE_CALLER_THAT_SKIP_SELF],
+      };
 
       const ret = await handler.call(
-        new PluginContext(normalizedOptions, ctx, plugin, pluginContextData),
+        new PluginContextImpl(
+          args.outputOptions,
+          ctx,
+          args.plugin,
+          args.pluginContextData,
+          args.onLog,
+          args.logLevel,
+          args.watchMode,
+        ),
         specifier,
         importer ?? undefined,
         newExtraOptions,
-      )
-      if (ret == false || ret == null) {
-        return
+      );
+      if (ret == null) {
+        return;
+      }
+      if (ret === false) {
+        return {
+          id: specifier,
+          external: true,
+          normalizeExternalId: true,
+        };
       }
       if (typeof ret === 'string') {
-        return {
-          id: ret,
-        }
+        return { id: ret, normalizeExternalId: false };
       }
 
-      const result: BindingHookResolveIdOutput = {
+      // Make sure the `moduleSideEffects` is update to date
+      let exist = args.pluginContextData.updateModuleOption(ret.id, {
+        meta: ret.meta || {},
+        moduleSideEffects: ret.moduleSideEffects ?? null,
+        invalidate: false,
+      });
+
+      return {
         id: ret.id,
         external: ret.external,
-      }
-
-      if (ret.moduleSideEffects !== null) {
-        // @ts-ignore TODO The typing should import from binding
-        result.sideEffects = bindingifySideEffects(ret.moduleSideEffects)
-      }
-
-      pluginContextData.updateModuleOption(ret.id, {
-        meta: ret.meta || {},
-        moduleSideEffects: ret.moduleSideEffects || null,
-      })
-
-      return result
+        normalizeExternalId: false,
+        sideEffects: bindingifySideEffects(exist.moduleSideEffects),
+      };
     },
     meta: bindingifyPluginHookMeta(meta),
-    // @ts-ignore
     filter: bindingifyResolveIdFilter(options.filter),
-  }
+  };
 }
 
 export function bindingifyResolveDynamicImport(
-  plugin: Plugin,
-  options: NormalizedInputOptions,
-  pluginContextData: PluginContextData,
+  args: BindingifyPluginArgs,
 ): PluginHookWithBindingExt<BindingPluginOptions['resolveDynamicImport']> {
-  const hook = plugin.resolveDynamicImport
+  const hook = args.plugin.resolveDynamicImport;
   if (!hook) {
-    return {}
+    return {};
   }
-  const { handler, meta } = normalizeHook(hook)
+  const { handler, meta } = normalizeHook(hook);
 
   return {
     plugin: async (ctx, specifier, importer) => {
       const ret = await handler.call(
-        new PluginContext(options, ctx, plugin, pluginContextData),
+        new PluginContextImpl(
+          args.outputOptions,
+          ctx,
+          args.plugin,
+          args.pluginContextData,
+          args.onLog,
+          args.logLevel,
+          args.watchMode,
+        ),
         specifier,
         importer ?? undefined,
-      )
-      if (ret == false || ret == null) {
-        return
+      );
+      if (ret == null) {
+        return;
+      }
+      if (ret === false) {
+        return {
+          id: specifier,
+          external: true,
+        };
       }
       if (typeof ret === 'string') {
         return {
           id: ret,
-        }
+        };
       }
 
       const result: BindingHookResolveIdOutput = {
         id: ret.id,
         external: ret.external,
-      }
+      };
 
       if (ret.moduleSideEffects !== null) {
-        // @ts-ignore TODO The typing should import from binding
-        result.sideEffects = bindingifySideEffects(ret.moduleSideEffects)
+        result.sideEffects = bindingifySideEffects(ret.moduleSideEffects);
       }
 
-      pluginContextData.updateModuleOption(ret.id, {
+      args.pluginContextData.updateModuleOption(ret.id, {
         meta: ret.meta || {},
         moduleSideEffects: ret.moduleSideEffects || null,
-      })
+        invalidate: false,
+      });
 
-      return result
+      return result;
     },
     meta: bindingifyPluginHookMeta(meta),
-  }
+  };
 }
 
 export function bindingifyTransform(
-  plugin: Plugin,
-  normalizedOptions: NormalizedInputOptions,
-  pluginContextData: PluginContextData,
-): PluginHookWithBindingExt<BindingPluginOptions['transform']> {
-  const hook = plugin.transform
+  args: BindingifyPluginArgs,
+): PluginHookWithBindingExt<
+  BindingPluginOptions['transform'],
+  BindingHookFilter | undefined
+> {
+  const hook = args.plugin.transform;
   if (!hook) {
-    return {}
+    return {};
   }
-  const { handler, meta, options } = normalizeHook(hook)
+  const { handler, meta, options } = normalizeHook(hook);
 
   return {
     plugin: async (ctx, code, id, meta) => {
       const ret = await handler.call(
-        new TransformPluginContext(
-          normalizedOptions,
+        new TransformPluginContextImpl(
+          args.outputOptions,
           ctx.inner(),
-          plugin,
-          pluginContextData,
+          args.plugin,
+          args.pluginContextData,
           ctx,
           id,
           code,
+          args.onLog,
+          args.logLevel,
+          args.watchMode,
         ),
         code,
         id,
         meta,
-      )
+      );
 
       if (ret == null) {
-        return undefined
+        return undefined;
       }
 
       if (typeof ret === 'string') {
-        return { code: ret }
+        return { code: ret };
       }
 
-      pluginContextData.updateModuleOption(id, {
-        meta: ret.meta || {},
-        moduleSideEffects: ret.moduleSideEffects || null,
-      })
+      let moduleOption = args.pluginContextData.updateModuleOption(id, {
+        meta: ret.meta ?? {},
+        moduleSideEffects: ret.moduleSideEffects ?? null,
+        invalidate: false,
+      });
 
       return {
         code: ret.code,
-        map: bindingifySourcemap(ret.map),
-        sideEffects: bindingifySideEffects(ret.moduleSideEffects),
+        map: bindingifySourcemap(
+          normalizeTransformHookSourcemap(id, code, ret.map),
+        ),
+        sideEffects: bindingifySideEffects(moduleOption.moduleSideEffects),
         moduleType: ret.moduleType,
-      }
+      };
     },
     meta: bindingifyPluginHookMeta(meta),
-    // @ts-ignore
     filter: bindingifyTransformFilter(options.filter),
-  }
+  };
 }
 
 export function bindingifyLoad(
-  plugin: Plugin,
-  normalized_options: NormalizedInputOptions,
-  pluginContextData: PluginContextData,
-): PluginHookWithBindingExt<BindingPluginOptions['load']> {
-  const hook = plugin.load
+  args: BindingifyPluginArgs,
+): PluginHookWithBindingExt<
+  BindingPluginOptions['load'],
+  BindingHookFilter | undefined
+> {
+  const hook = args.plugin.load;
   if (!hook) {
-    return {}
+    return {};
   }
-  const { handler, meta, options } = normalizeHook(hook)
+  const { handler, meta, options } = normalizeHook(hook);
 
   return {
     plugin: async (ctx, id) => {
       const ret = await handler.call(
-        new PluginContext(normalized_options, ctx, plugin, pluginContextData),
+        new PluginContextImpl(
+          args.outputOptions,
+          ctx,
+          args.plugin,
+          args.pluginContextData,
+          args.onLog,
+          args.logLevel,
+          args.watchMode,
+          id,
+        ),
         id,
-      )
+      );
 
       if (ret == null) {
-        return
+        return;
       }
 
       if (typeof ret === 'string') {
-        return { code: ret }
+        return { code: ret };
       }
 
-      if (!ret.map) {
-        return { code: ret.code, moduleType: ret.moduleType }
-      }
+      let moduleOption = args.pluginContextData.updateModuleOption(id, {
+        meta: ret.meta || {},
+        moduleSideEffects: ret.moduleSideEffects ?? null,
+        invalidate: false,
+      });
 
-      let map =
-        typeof ret.map === 'object'
-          ? ret.map
-          : (JSON.parse(ret.map) as ExistingRawSourceMap)
-      if (!isEmptySourcemapFiled(map.sources)) {
-        // normalize original sourcemap sources
-        // Port form https://github.com/rollup/rollup/blob/master/src/utils/collapseSourcemaps.ts#L180-L188.
-        const directory = path.dirname(id) || '.'
-        const sourceRoot = map.sourceRoot || '.'
-        map.sources = map.sources!.map((source) =>
-          path.resolve(directory, sourceRoot, source!),
-        )
-      }
+      let map = preProcessSourceMap(ret, id);
 
-      const result = {
+      return {
         code: ret.code,
         map: bindingifySourcemap(map),
         moduleType: ret.moduleType,
-      }
-
-      if (ret.moduleSideEffects !== null) {
-        // @ts-ignore TODO The typing should import from binding
-        result.sideEffects = bindingifySideEffects(ret.moduleSideEffects)
-      }
-
-      pluginContextData.updateModuleOption(id, {
-        meta: ret.meta || {},
-        moduleSideEffects: ret.moduleSideEffects || null,
-      })
-
-      return result
+        sideEffects: bindingifySideEffects(moduleOption.moduleSideEffects),
+      };
     },
     meta: bindingifyPluginHookMeta(meta),
-    // @ts-ignore
     filter: bindingifyLoadFilter(options.filter),
+  };
+}
+
+function preProcessSourceMap(
+  ret: SourceDescription,
+  id: string,
+): ExistingRawSourceMap | null | undefined {
+  if (!ret.map) {
+    return;
   }
+  let map = typeof ret.map === 'object'
+    ? ret.map
+    : (JSON.parse(ret.map) as ExistingRawSourceMap);
+  if (!isEmptySourcemapFiled(map.sources)) {
+    // normalize original sourcemap sources
+    // Port form https://github.com/rollup/rollup/blob/master/src/utils/collapseSourcemaps.ts#L180-L188.
+    const directory = path.dirname(id) || '.';
+    const sourceRoot = map.sourceRoot || '.';
+    map.sources = map.sources!.map((source) =>
+      path.resolve(directory, sourceRoot, source!)
+    );
+  }
+  return map;
 }
 
 export function bindingifyModuleParsed(
-  plugin: Plugin,
-  options: NormalizedInputOptions,
-  pluginContextData: PluginContextData,
+  args: BindingifyPluginArgs,
 ): PluginHookWithBindingExt<BindingPluginOptions['moduleParsed']> {
-  const hook = plugin.moduleParsed
+  const hook = args.plugin.moduleParsed;
   if (!hook) {
-    return {}
+    return {};
   }
-  const { handler, meta } = normalizeHook(hook)
+  const { handler, meta } = normalizeHook(hook);
 
   return {
     plugin: async (ctx, moduleInfo) => {
       await handler.call(
-        new PluginContext(options, ctx, plugin, pluginContextData),
+        new PluginContextImpl(
+          args.outputOptions,
+          ctx,
+          args.plugin,
+          args.pluginContextData,
+          args.onLog,
+          args.logLevel,
+          args.watchMode,
+        ),
         transformModuleInfo(
           moduleInfo,
-          pluginContextData.moduleOptionMap.get(moduleInfo.id)!,
+          args.pluginContextData.getModuleOption(moduleInfo.id),
         ),
-      )
+      );
     },
     meta: bindingifyPluginHookMeta(meta),
-  }
+  };
 }

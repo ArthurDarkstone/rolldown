@@ -3,16 +3,15 @@ source: crates/rolldown_testing/src/integration_test.rs
 ---
 # Assets
 
-## entry_js.mjs
+## entry.js
 
 ```js
-
 //#region entry.js
 function fnStmtKeep() {}
 x = fnStmtKeep;
 let fnExprKeep = function keep() {};
 x = fnExprKeep;
-class clsStmtKeep {}
+var clsStmtKeep = class {};
 new clsStmtKeep();
 let clsExprKeep = class keep {};
 new clsExprKeep();

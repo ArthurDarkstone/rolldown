@@ -3,14 +3,13 @@ source: crates/rolldown_testing/src/integration_test.rs
 ---
 # Assets
 
-## main.mjs
+## main.js
 
 ```js
 
-
 //#region c.js
 var require_c = __commonJS({ "c.js"(exports) {
-	exports.test = 1000;
+	exports.test = 1e3;
 } });
 
 //#endregion

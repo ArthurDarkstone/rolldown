@@ -12,7 +12,7 @@ use serde::Deserialize;
 /// > export of this module corresponds to the `.default` property of the exported object.
 /// >
 /// > *From rollupjs.org*
-#[derive(Debug, Default)]
+#[derive(Debug, Default, Clone, Copy)]
 #[cfg_attr(
   feature = "deserialize_bundler_options",
   derive(Deserialize, JsonSchema),
@@ -55,11 +55,7 @@ pub enum EsModuleFlag {
 
 impl From<bool> for EsModuleFlag {
   fn from(value: bool) -> Self {
-    if value {
-      Self::Always
-    } else {
-      Self::Never
-    }
+    if value { Self::Always } else { Self::Never }
   }
 }
 

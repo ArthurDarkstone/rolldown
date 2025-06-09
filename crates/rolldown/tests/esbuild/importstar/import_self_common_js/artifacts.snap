@@ -3,20 +3,20 @@ source: crates/rolldown_testing/src/integration_test.rs
 ---
 # Assets
 
-## entry_js.mjs
+## entry.js
 
 ```js
-import { default as assert } from "node:assert";
 
+const node_assert = __toESM(require("node:assert"));
 
 //#region entry.js
 var require_entry = __commonJS({ "entry.js"(exports) {
 	var import_entry = __toESM(require_entry());
 	exports.foo = 123;
-	assert.equal(import_entry.foo, undefined);
+	node_assert.default.equal(import_entry.foo, void 0);
 } });
 
 //#endregion
-export default require_entry();
+module.exports = require_entry();
 
 ```

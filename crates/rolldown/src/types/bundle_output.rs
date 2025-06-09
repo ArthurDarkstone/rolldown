@@ -4,6 +4,5 @@ use rolldown_error::BuildDiagnostic;
 #[derive(Default)]
 pub struct BundleOutput {
   pub warnings: Vec<BuildDiagnostic>,
-  pub errors: Vec<BuildDiagnostic>,
   pub assets: Vec<Output>,
 }

@@ -1,145 +1,190 @@
-import type { RolldownPluginRec } from '../plugin'
-import { z } from 'zod'
-import * as zodExt from '../utils/zod-ext'
-import {
-  LogLevelOptionSchema,
-  LogLevelSchema,
-  LogLevelWithErrorSchema,
-  RollupLogSchema,
-  RollupLogWithStringSchema,
-} from '../log/logging'
-import { TreeshakingOptions } from '../treeshake'
-import { underline, gray, yellow, dim } from '../cli/colors'
+import type { TransformOptions } from '../binding';
+import type {
+  LogLevel,
+  LogLevelOption,
+  LogOrStringHandler,
+  RollupLog,
+  RollupLogWithString,
+} from '../log/logging';
+import type { RolldownPluginOption } from '../plugin';
+import type { TreeshakingOptions } from '../types/module-side-effects';
+import type { NullValue, StringOrRegExp } from '../types/utils';
+import type { ChecksOptions } from './generated/checks-options';
 
-const inputOptionSchema = z
-  .string()
-  .or(z.string().array())
-  .or(z.record(z.string()))
+export type InputOption = string | string[] | Record<string, string>;
 
-const externalSchema = zodExt
-  .stringOrRegExp()
-  .or(zodExt.stringOrRegExp().array())
-  .or(
-    z
-      .function()
-      .args(z.string(), z.string().optional(), z.boolean())
-      .returns(zodExt.voidNullableWith(z.boolean())),
-  )
+// Omit those key that are part of rolldown option
+type OxcTransformOption = Omit<
+  TransformOptions,
+  | 'sourceType'
+  | 'lang'
+  | 'cwd'
+  | 'sourcemap'
+  | 'define'
+  | 'inject'
+>;
 
-const moduleTypesSchema = z.record(
-  z
-    .literal('js')
-    .or(z.literal('jsx'))
-    .or(z.literal('ts'))
-    .or(z.literal('tsx'))
-    .or(z.literal('json'))
-    .or(z.literal('text'))
-    .or(z.literal('base64'))
-    .or(z.literal('dataurl'))
-    .or(z.literal('binary'))
-    .or(z.literal('empty')),
-)
+export type ExternalOption =
+  | StringOrRegExp
+  | StringOrRegExp[]
+  | ((
+    id: string,
+    parentId: string | undefined,
+    isResolved: boolean,
+  ) => NullValue<boolean>);
 
-export const inputOptionsSchema = z.strictObject({
-  input: inputOptionSchema.optional(),
-  plugins: zodExt.phantom<RolldownPluginRec>().array().optional(),
-  external: externalSchema.optional(),
-  resolve: z
-    .strictObject({
-      alias: z.record(z.string()).optional(),
-      aliasFields: z.array(z.array(z.string())).optional(),
-      conditionNames: zodExt.optionalStringArray(),
-      extensionAlias: z.record(z.string(), z.array(z.string())).optional(),
-      exportsFields: z.array(z.array(z.string())).optional(),
-      extensions: zodExt.optionalStringArray(),
-      mainFields: zodExt.optionalStringArray(),
-      mainFiles: zodExt.optionalStringArray(),
-      modules: zodExt.optionalStringArray(),
-      symlinks: z.boolean().optional(),
-      tsconfigFilename: z.string().optional(),
-    })
-    .optional(),
-  cwd: z.string().describe('current working directory.').optional(),
-  platform: z
-    .literal('node')
-    .or(z.literal('browser'))
-    .or(z.literal('neutral'))
-    .describe(
-      `platform for which the code should be generated (node, ${underline('browser')}, neutral).`,
-    )
-    .optional(),
-  shimMissingExports: z.boolean().optional(),
-  // FIXME: should use a more specific schema
-  treeshake: zodExt.phantom<boolean | TreeshakingOptions>().optional(),
-  logLevel: LogLevelOptionSchema.describe(
-    `log level (${dim('silent')}, ${underline(gray('info'))}, debug, ${yellow('warn')})`,
-  ).optional(),
-  onLog: z
-    .function()
-    .args(
-      LogLevelSchema,
-      RollupLogSchema,
-      z.function().args(LogLevelWithErrorSchema, RollupLogWithStringSchema),
-    )
-    .optional(),
-  onwarn: z
-    .function()
-    .args(
-      RollupLogSchema,
-      z
-        .function()
-        .args(
-          RollupLogWithStringSchema.or(
-            z.function().returns(RollupLogWithStringSchema),
-          ),
-        ),
-    )
-    .optional(),
-  moduleTypes: moduleTypesSchema
-    .describe('module types for customized extensions.')
-    .optional(),
-  experimental: z
-    .strictObject({
-      enableComposingJsPlugins: z.boolean().optional(),
-      strictExecutionOrder: z.boolean().optional(),
-      disableLiveBindings: z.boolean().optional(),
-    })
-    .optional(),
-  define: z.record(z.string()).describe('define global variables').optional(),
-  inject: z.record(z.string().or(z.tuple([z.string(), z.string()]))).optional(),
-  profilerNames: z.boolean().optional(),
-})
+export type ModuleTypes = Record<
+  string,
+  | 'js'
+  | 'jsx'
+  | 'ts'
+  | 'tsx'
+  | 'json'
+  | 'text'
+  | 'base64'
+  | 'dataurl'
+  | 'binary'
+  | 'empty'
+  | 'css'
+  | 'asset'
+>;
 
-export const inputCliOptionsSchema = inputOptionsSchema
-  .extend({
-    external: z
-      .array(z.string())
-      .describe(
-        'Comma-separated list of module ids to exclude from the bundle `<module-id>,...`',
-      )
-      .optional(),
-    inject: z
-      .record(z.string())
-      .describe('inject import statements on demand')
-      .optional(),
-    treeshake: z
-      .boolean()
-      .describe('enable treeshaking')
-      .default(true)
-      .optional(),
-  })
-  .omit({
-    input: true,
-    plugins: true,
-    onwarn: true,
-    onLog: true,
-    resolve: true,
-    experimental: true,
-    profilerNames: true,
-  })
+export interface WatcherOptions {
+  skipWrite?: boolean;
+  buildDelay?: number;
+  notify?: {
+    pollInterval?: number;
+    compareContents?: boolean;
+  };
+  include?: StringOrRegExp | StringOrRegExp[];
+  exclude?: StringOrRegExp | StringOrRegExp[];
+}
 
-type RawInputOptions = z.infer<typeof inputOptionsSchema>
-interface OverwriteInputOptionsWithDoc {
+type MakeAbsoluteExternalsRelative = boolean | 'ifRelativeSource';
+
+export type HmrOptions = boolean | {
+  host?: string;
+  port?: number;
+  implement?: string;
+};
+
+export interface RollupJsxOptions {
+  mode?: 'classic' | 'automatic' | 'preserve';
+  factory?: string;
+  fragment?: string;
+  importSource?: string;
+  jsxImportSource?: string;
+}
+
+export interface InputOptions {
+  input?: InputOption;
+  plugins?: RolldownPluginOption;
+  external?: ExternalOption;
+  resolve?: {
+    /**
+     * > [!WARNING]
+     * > `resolve.alias` will not call `resolveId` hooks of other plugin.
+     * > If you want to call `resolveId` hooks of other plugin, use `aliasPlugin` from `rolldown/experimental` instead.
+     * > You could find more discussion in [this issue](https://github.com/rolldown/rolldown/issues/3615)
+     */
+    alias?: Record<string, string[] | string>;
+    aliasFields?: string[][];
+    conditionNames?: string[];
+    /**
+     * Map of extensions to alternative extensions.
+     *
+     * With writing `import './foo.js'` in a file, you want to resolve it to `foo.ts` instead of `foo.js`.
+     * You can achieve this by setting: `extensionAlias: { '.js': ['.ts', '.js'] }`.
+     */
+    extensionAlias?: Record<string, string[]>;
+    exportsFields?: string[][];
+    extensions?: string[];
+    mainFields?: string[];
+    mainFiles?: string[];
+    modules?: string[];
+    symlinks?: boolean;
+    tsconfigFilename?: string;
+  };
+  cwd?: string;
+  /**
+   * Expected platform where the code run.
+   *
+   * @default
+   * - 'node' if the format is 'cjs'
+   * - 'browser' for other formats
+   */
+  platform?: 'node' | 'browser' | 'neutral';
+  shimMissingExports?: boolean;
+  treeshake?: boolean | TreeshakingOptions;
+  logLevel?: LogLevelOption;
+  onLog?: (
+    level: LogLevel,
+    log: RollupLog,
+    defaultHandler: LogOrStringHandler,
+  ) => void;
+  onwarn?: (
+    warning: RollupLog,
+    defaultHandler: (
+      warning: RollupLogWithString | (() => RollupLogWithString),
+    ) => void,
+  ) => void;
+  moduleTypes?: ModuleTypes;
+  experimental?: {
+    enableComposingJsPlugins?: boolean;
+    strictExecutionOrder?: boolean;
+    disableLiveBindings?: boolean;
+    viteMode?: boolean;
+    resolveNewUrlToAsset?: boolean;
+    hmr?: HmrOptions;
+    attachDebugInfo?: boolean;
+  };
+  /**
+   * Replace global variables or [property accessors](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators/Property_accessors) with the provided values.
+   *
+   * # Examples
+   *
+   * - Replace the global variable `IS_PROD` with `true`
+   *
+   * ```js rolldown.config.js
+   * export default defineConfig({ define: { IS_PROD: 'true' // or JSON.stringify(true) } })
+   * ```
+   *
+   * Result:
+   *
+   * ```js
+   * // Input
+   * if (IS_PROD) {
+   *   console.log('Production mode')
+   * }
+   *
+   * // After bundling
+   * if (true) {
+   *   console.log('Production mode')
+   * }
+   * ```
+   *
+   * - Replace the property accessor `process.env.NODE_ENV` with `'production'`
+   *
+   * ```js rolldown.config.js
+   * export default defineConfig({ define: { 'process.env.NODE_ENV': "'production'" } })
+   * ```
+   *
+   * Result:
+   *
+   * ```js
+   * // Input
+   * if (process.env.NODE_ENV === 'production') {
+   *  console.log('Production mode')
+   * }
+   *
+   * // After bundling
+   * if ('production' === 'production') {
+   * console.log('Production mode')
+   * }
+   *
+   * ```
+   */
+  define?: Record<string, string>;
   /**
    * Inject import statements on demand.
    *
@@ -163,13 +208,45 @@ interface OverwriteInputOptionsWithDoc {
    * }
    * ```
    */
-  inject?: RawInputOptions['inject']
+  inject?: Record<string, string | [string, string]>;
+  profilerNames?: boolean;
+  /**
+   * - `false` disables the JSX parser, resulting in a syntax error if JSX syntax is used.
+   * - `"preserve"` disables the JSX transformer, preserving the original JSX syntax in the output.
+   * - `"react"` enables the `classic` JSX transformer.
+   * - `"react-jsx"` enables the `automatic` JSX transformer.
+   *
+   * @default runtime = "automatic"
+   */
+  jsx?: false | 'react' | 'react-jsx' | 'preserve' | RollupJsxOptions;
+  transform?: OxcTransformOption;
+  watch?: WatcherOptions | false;
+  dropLabels?: string[];
+  keepNames?: boolean;
+  checks?: ChecksOptions;
+  makeAbsoluteExternalsRelative?: MakeAbsoluteExternalsRelative;
+  debug?: {
+    sessionId?: string;
+  };
 }
 
-export type InputOption = z.infer<typeof inputOptionSchema>
-export type InputOptions = Omit<
-  RawInputOptions,
-  keyof OverwriteInputOptionsWithDoc
-> &
-  OverwriteInputOptionsWithDoc
-export type ExternalOption = z.infer<typeof externalSchema>
+interface OverwriteInputOptionsForCli {
+  external?: string[];
+  inject?: Record<string, string>;
+  treeshake?: boolean;
+}
+
+export type InputCliOptions =
+  & Omit<
+    InputOptions,
+    | keyof OverwriteInputOptionsForCli
+    | 'input'
+    | 'plugins'
+    | 'onwarn'
+    | 'onLog'
+    | 'resolve'
+    | 'experimental'
+    | 'profilerNames'
+    | 'watch'
+  >
+  & OverwriteInputOptionsForCli;

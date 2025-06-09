@@ -1,6 +1,6 @@
 import { expect, vi } from 'vitest'
 import path from 'node:path'
-import { defineTest } from '@tests'
+import { defineTest } from 'rolldown-tests'
 
 const entry = path.join(__dirname, './main.js')
 const entryFileNames = '[name]-render-start.js'
@@ -18,7 +18,7 @@ export default defineTest({
         name: 'test-plugin-render-start',
         renderStart: (outputOptions, inputOptions) => {
           renderStartFn()
-          expect((inputOptions.input as string[])[0]).toBe(entry)
+          expect(inputOptions.input).toStrictEqual([entry])
           expect(outputOptions.entryFileNames).toBe(entryFileNames)
         },
       },

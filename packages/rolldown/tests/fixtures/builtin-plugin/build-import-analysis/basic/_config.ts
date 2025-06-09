@@ -1,5 +1,5 @@
 import { buildImportAnalysisPlugin } from 'rolldown/experimental'
-import { defineTest } from '@tests'
+import { defineTest } from 'rolldown-tests'
 import { expect } from 'vitest'
 
 export default defineTest({
@@ -32,6 +32,7 @@ export const __vitePreload = (v) => {
         isRelativeBase: false,
       }),
     ],
+    external: ['node:assert'],
   },
   async afterTest(output) {
     await import('./assert.mjs')

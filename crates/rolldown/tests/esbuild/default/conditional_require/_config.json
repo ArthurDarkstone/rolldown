@@ -3,9 +3,10 @@
   "config": {
     "input": [
       {
-        "name": "a_js",
+        "name": "a",
         "import": "a.js"
       }
-    ]
+    ],
+    "external": ["a", "c"]
   }
 }

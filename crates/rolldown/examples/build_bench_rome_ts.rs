@@ -1,5 +1,5 @@
 use rolldown::{Bundler, BundlerOptions, InputItem, ResolveOptions, SourceMapType};
-use rolldown_testing::workspace;
+use rolldown_workspace as workspace;
 
 // cargo run --example build_bench_rome_ts
 
@@ -26,6 +26,5 @@ async fn main() {
     ..Default::default()
   });
 
-  let result = bundler.write().await.unwrap();
-  assert!(result.errors.is_empty(), "failed to bundle: {:?}", result.errors);
+  let _result = bundler.write().await.unwrap();
 }

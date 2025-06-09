@@ -3,25 +3,35 @@ source: crates/rolldown_testing/src/integration_test.rs
 ---
 # warnings
 
-## UNRESOLVED_IMPORT
+## MISSING_GLOBAL_NAME
 
 ```text
-[UNRESOLVED_IMPORT] Warning: "./foo" is imported by "entry.js", but could not be resolved – treating it as an external dependency.
+[MISSING_GLOBAL_NAME] Warning: No name was provided for external module "foo" in "output.globals" – guessing "foo".
 
 ```
-## UNRESOLVED_IMPORT
+## MISSING_NAME_OPTION_FOR_IIFE_EXPORT
 
 ```text
-[UNRESOLVED_IMPORT] Warning: "./foo" is imported by "entry.js", but could not be resolved – treating it as an external dependency.
+[MISSING_NAME_OPTION_FOR_IIFE_EXPORT] Warning: If you do not supply "output.name", you may not be able to access the exports of an IIFE bundle.
 
 ```
 # Assets
 
-## entry_js.mjs
+## entry.js
 
 ```js
-import * as all the stuff from "./foo";
-import { some import as someImport } from "./foo";
+(function(exports, foo) {
 
-export { all the stuff, someImport as 'some export' };
+
+foo = __toESM(foo);
+
+Object.defineProperty(exports, 'all the stuff', {
+  enumerable: true,
+  get: function () {
+    return foo;
+  }
+});
+exports["some export"] = foo["some import"];
+return exports;
+})({}, foo);
 ```

@@ -3,20 +3,9 @@ source: crates/rolldown_testing/src/integration_test.rs
 ---
 # Assets
 
-## a_js.mjs
+## a.js
 
 ```js
-
-//#region a.js
-import("./b.mjs").then((ns) => console.log(ns));
-import("./b.mjs").then((ns) => console.log(ns));
-
-//#endregion
-```
-## b.mjs
-
-```js
-
 
 //#region b.js
 var require_b = __commonJS({ "b.js"(exports) {
@@ -24,6 +13,9 @@ var require_b = __commonJS({ "b.js"(exports) {
 } });
 
 //#endregion
-export default require_b();
+//#region a.js
+Promise.resolve().then(() => __toESM(require_b())).then((ns) => console.log(ns));
+Promise.resolve().then(() => __toESM(require_b())).then((ns) => console.log(ns));
 
+//#endregion
 ```

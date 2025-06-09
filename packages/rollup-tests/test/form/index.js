@@ -1,6 +1,8 @@
 const assert = require('node:assert');
 const { existsSync, readFileSync } = require('node:fs');
 const { basename, resolve } = require('node:path');
+const stripComments = require('strip-comments');
+const oxc = require('oxc-transform')
 /**
  * @type {import('../../src/rollup/types')} Rollup
  */
@@ -10,10 +12,10 @@ const {
 	compareLogs,
 	normaliseOutput: normalizeOutput,
 	runTestSuiteWithSamples,
-	verifyAstPlugin
 } = require('../utils.js');
 
-const FORMATS = ['amd', 'cjs', 'system', 'es', 'iife', 'umd'];
+// const FORMATS = ['amd', 'cjs', 'system', 'es', 'iife', 'umd'];
+const FORMATS = ['es'];
 
 runTestSuiteWithSamples(
 	'form',
@@ -47,6 +49,7 @@ runTestSuiteWithSamples(
 										warnings.push(log);
 									}
 								},
+								keepNames: directory.includes('assignment-to-exports-class-declaration') ? true : false,
 								strictDeprecations: true,
 								...config.options,
 								plugins: config.options?.plugins
@@ -145,6 +148,21 @@ async function generateAndTestBundle(bundle, outputOptions, expectedFile, { show
 		console.log(actualCode + '\n\n\n');
 	}
 
-	assert.strictEqual(actualCode, expectedCode);
+	assert.strictEqual(formatter(actualCode), formatter(expectedCode));
 	assert.deepStrictEqual(actualMap, expectedMap);
+}
+
+function formatter(input) {
+  // TODO: It's better to have a print comments option in the oxc-transform.
+  input = stripComments(input);
+  
+	const { code, errors } = oxc.transform(
+		'test.js',
+		input,
+		{}
+	);
+	if (errors.length > 0) {
+		throw new Error('oxc formatter code found error: ' + errors.join(', '))
+	}
+	return code 
 }

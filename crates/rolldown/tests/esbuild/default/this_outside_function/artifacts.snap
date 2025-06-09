@@ -3,27 +3,26 @@ source: crates/rolldown_testing/src/integration_test.rs
 ---
 # Assets
 
-## entry_js.mjs
+## entry.js
 
 ```js
-
 //#region entry.js
 if (shouldBeExportsNotThis) {
-	console.log(this);
-	console.log((x = this) => this);
-	console.log({ x: this });
-	console.log(class extends this.foo {});
+	console.log(void 0);
+	console.log((x = void 0) => void 0);
+	console.log({ x: void 0 });
+	console.log(class extends (void 0).foo {});
 	console.log(class {
-		[this.foo];
+		[(void 0).foo];
 	});
 	console.log(class {
-		[this.foo]() {}
+		[(void 0).foo]() {}
 	});
 	console.log(class {
-		static [this.foo];
+		static [(void 0).foo];
 	});
 	console.log(class {
-		static [this.foo]() {}
+		static [(void 0).foo]() {}
 	});
 }
 if (shouldBeThisNotExports) {
@@ -31,17 +30,13 @@ if (shouldBeThisNotExports) {
 		foo = this;
 	});
 	console.log(class {
-		foo() {
-			this;
-		}
+		foo() {}
 	});
 	console.log(class {
 		static foo = this;
 	});
 	console.log(class {
-		static foo() {
-			this;
-		}
+		static foo() {}
 	});
 }
 

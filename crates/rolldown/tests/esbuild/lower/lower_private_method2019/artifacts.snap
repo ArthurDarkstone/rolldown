@@ -3,12 +3,11 @@ source: crates/rolldown_testing/src/integration_test.rs
 ---
 # Assets
 
-## entry_js.mjs
+## entry.js
 
 ```js
-
 //#region entry.js
-class Foo {
+var Foo = class {
 	#field;
 	#method() {}
 	baseline() {
@@ -34,7 +33,7 @@ class Foo {
 		e()?.#method?.(x);
 		f()?.foo.#method(x).bar();
 	}
-}
+};
 
 //#endregion
 export { Foo };

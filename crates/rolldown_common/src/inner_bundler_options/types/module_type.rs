@@ -23,6 +23,7 @@ pub enum ModuleType {
   Binary,
   Empty,
   Css,
+  Asset,
   Custom(String),
 }
 
@@ -39,6 +40,8 @@ impl ModuleType {
       "dataurl" => Ok(Self::Dataurl),
       "binary" => Ok(Self::Binary),
       "empty" => Ok(Self::Empty),
+      "css" => Ok(Self::Css),
+      "asset" => Ok(Self::Asset),
       _ => Err(anyhow::format_err!("Unknown module type: {s}")),
     }
   }
@@ -57,6 +60,8 @@ impl ModuleType {
       "dataurl" => Self::Dataurl,
       "binary" => Self::Binary,
       "empty" => Self::Empty,
+      "css" => Self::Css,
+      "asset" => Self::Asset,
       _ => Self::Custom(s.as_ref().to_string()),
     }
   }
@@ -76,6 +81,7 @@ impl Display for ModuleType {
       ModuleType::Binary => write!(f, "binary"),
       ModuleType::Empty => write!(f, "empty"),
       ModuleType::Css => write!(f, "css"),
+      ModuleType::Asset => write!(f, "asset"),
       ModuleType::Custom(custom_type) => write!(f, "{custom_type}"),
     }
   }

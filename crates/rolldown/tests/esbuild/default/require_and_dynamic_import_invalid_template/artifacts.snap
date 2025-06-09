@@ -3,16 +3,16 @@ source: crates/rolldown_testing/src/integration_test.rs
 ---
 # Assets
 
-## entry_js.mjs
+## entry.js
 
 ```js
 
 //#region entry.js
-require(tag`./b`);
-require(`./${b}`);
+__require(tag`./b`);
+__require(`./${b}`);
 try {
-	require(tag`./b`);
-	require(`./${b}`);
+	__require(tag`./b`);
+	__require(`./${b}`);
 } catch {}
 (async () => {
 	import(tag`./b`);

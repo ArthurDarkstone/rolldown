@@ -1,25 +1,67 @@
-use std::{collections::HashMap, sync::LazyLock};
+use oxc::syntax::identifier;
+use rustc_hash::FxHashMap;
 
-use regex::Regex;
+/// Checks if a string matches the pattern of an object property access chain
+/// (e.g., "process.env.NODE_ENV").
+///
+/// The pattern requires:
+/// 1. A valid identifier at the start
+/// 2. One or more dot-separated valid identifiers following it
+///
+/// Valid identifiers follow JavaScript rules: they start with a letter, underscore,
+/// dollar sign, or Unicode character, and can contain numbers in subsequent positions.
+fn is_object_property_chain(s: &str) -> bool {
+  // Empty string is not a valid object property chain
+  if s.is_empty() {
+    return false;
+  }
 
-static OBJECT_RE: LazyLock<Regex> = LazyLock::new(|| {
-  let pattern = r"^([_$a-zA-Z\xA0-\uFFFF][_$a-zA-Z0-9\xA0-\uFFFF]*)(\.([_$a-zA-Z\xA0-\uFFFF][_$a-zA-Z0-9\xA0-\uFFFF]*))+$";
-  Regex::new(pattern).expect("Should be valid regex")
-});
+  // Split the string by dots
+  let parts: Vec<&str> = s.split('.').collect();
 
-pub(crate) fn expand_typeof_replacements(
-  values: &HashMap<String, String>,
-) -> Vec<(String, String)> {
+  // Must have at least two parts (object.property)
+  if parts.len() < 2 {
+    return false;
+  }
+
+  // Check each part is a valid identifier
+  for part in parts {
+    // Empty part means there were consecutive dots or a trailing/leading dot
+    if part.is_empty() {
+      return false;
+    }
+
+    // Check first character is valid for identifier start
+    let mut chars = part.chars();
+    let Some(first) = chars.next() else {
+      return false;
+    };
+    if !identifier::is_identifier_start(first) {
+      return false;
+    }
+
+    // Check remaining characters are valid for identifier parts
+    for c in chars {
+      if !identifier::is_identifier_part(c) {
+        return false;
+      }
+    }
+  }
+
+  true
+}
+
+pub fn expand_typeof_replacements(values: &FxHashMap<String, String>) -> Vec<(String, String)> {
   let mut replacements: Vec<(String, String)> = Vec::new();
 
   for key in values.keys() {
-    if OBJECT_RE.is_match(key) {
+    if is_object_property_chain(key) {
       // Skip last part
       replacements.extend(key.match_indices('.').map(|(index, _)| {
         let match_str = &key[..index];
         (format!("typeof {match_str}"), "\"object\"".to_string())
       }));
-    };
+    }
   }
 
   replacements
@@ -27,18 +69,18 @@ pub(crate) fn expand_typeof_replacements(
 
 #[cfg(test)]
 mod tests {
-  use std::collections::HashMap;
+  use rustc_hash::FxHashMap;
 
   use super::expand_typeof_replacements;
 
   fn run_test(keys: &[&str], expected: &[(&str, &str)]) {
     let map = keys.iter().copied().map(|key| (key.to_string(), "x".to_string())).collect();
-    let result = expand_typeof_replacements(&map).into_iter().collect::<HashMap<_, _>>();
+    let result = expand_typeof_replacements(&map).into_iter().collect::<FxHashMap<_, _>>();
     let expected = expected
       .iter()
       .copied()
       .map(|(key, replacement)| (key.to_string(), replacement.to_string()))
-      .collect::<HashMap<_, _>>();
+      .collect::<FxHashMap<_, _>>();
     assert_eq!(result, expected);
   }
 

@@ -1,4 +1,5 @@
-<<<<<<< HEAD
+# Reason
+1. Can't disable bundle splitting
 # Diff
 ## /out.js
 ### esbuild
@@ -43,35 +44,74 @@ await init_entry();
 ### rolldown
 ```js
 
-//#region entry.js
-import("./a.mjs");
-import("./b2.mjs");
-import("./c2.mjs");
-import("./entry_js.mjs");
-await 0;
+//#region c.js
+var require_c = __commonJS({ "c.js"() {
+	await 0;
+} });
 
 //#endregion
+//#region b.js
+var b_exports = {};
+var import_c;
+var init_b = __esm({ async "b.js"() {
+	import_c = __toESM(require_c());
+} });
+
+//#endregion
+//#region a.js
+var a_exports = {};
+var init_a = __esm({ async "a.js"() {
+	await init_b();
+} });
+
+//#endregion
+//#region entry.js
+var require_entry = __commonJS({ "entry.js"() {
+	init_a().then(() => a_exports);
+	init_b().then(() => b_exports);
+	Promise.resolve().then(() => __toESM(require_c()));
+	Promise.resolve().then(() => __toESM(require_entry()));
+	await 0;
+} });
+
+//#endregion
+export default require_entry();
 
 ```
 ### diff
 ```diff
 ===================================================================
 --- esbuild	/out.js
-+++ rolldown	entry_js.mjs
-@@ -1,29 +1,5 @@
++++ rolldown	entry.js
+@@ -1,29 +1,33 @@
 -var c_exports = {};
 -var init_c = __esm({
 -    async "c.js"() {
 -        await 0;
 -    }
 -});
--var b_exports = {};
++
++//#region c.js
++var require_c = __commonJS({ "c.js"() {
++	await 0;
++} });
++
++//#endregion
++//#region b.js
+ var b_exports = {};
 -var init_b = __esm({
 -    async "b.js"() {
 -        await init_c();
 -    }
 -});
--var a_exports = {};
++var import_c;
++var init_b = __esm({ async "b.js"() {
++	import_c = __toESM(require_c());
++} });
++
++//#endregion
++//#region a.js
+ var a_exports = {};
 -var init_a = __esm({
 -    async "a.js"() {
 -        await init_b();
@@ -88,10 +128,21 @@ await 0;
 -    }
 -});
 -await init_entry();
-+import("./a.mjs");
-+import("./b2.mjs");
-+import("./c2.mjs");
-+import("./entry_js.mjs");
-+await 0;
++var init_a = __esm({ async "a.js"() {
++	await init_b();
++} });
++
++//#endregion
++//#region entry.js
++var require_entry = __commonJS({ "entry.js"() {
++	init_a().then(() => a_exports);
++	init_b().then(() => b_exports);
++	Promise.resolve().then(() => __toESM(require_c()));
++	Promise.resolve().then(() => __toESM(require_entry()));
++	await 0;
++} });
++
++//#endregion
++export default require_entry();
 
 ```

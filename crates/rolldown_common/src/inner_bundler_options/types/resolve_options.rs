@@ -5,7 +5,7 @@ use serde::Deserialize;
 
 /// A simple wrapper around `oxc_resolver::ResolveOptions` to make it easier to use in the `rolldown_resolver` crate.
 /// See [oxc_resolver::ResolveOptions](https://docs.rs/oxc_resolver/latest/oxc_resolver/struct.ResolveOptions.html) for more information.
-#[derive(Debug, Default)]
+#[derive(Debug, Default, Clone)]
 #[cfg_attr(
   feature = "deserialize_bundler_options",
   derive(Deserialize, JsonSchema),
@@ -20,7 +20,6 @@ pub struct ResolveOptions {
   pub extension_alias: Option<Vec<(String, Vec<String>)>>,
   pub main_fields: Option<Vec<String>>,
   pub main_files: Option<Vec<String>>,
-  pub modules: Option<Vec<String>>,
   pub symlinks: Option<bool>,
   pub tsconfig_filename: Option<String>,
 }

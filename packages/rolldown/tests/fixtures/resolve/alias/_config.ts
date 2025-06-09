@@ -1,10 +1,10 @@
-import { defineTest } from '@tests'
+import { defineTest } from 'rolldown-tests'
 
 export default defineTest({
   config: {
     resolve: {
       alias: {
-        '@': __dirname,
+        '@': ['./not-exists', __dirname],
       },
     },
   },

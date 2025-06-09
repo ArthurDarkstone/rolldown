@@ -3,10 +3,9 @@ source: crates/rolldown_testing/src/integration_test.rs
 ---
 # Assets
 
-## entry_js.mjs
+## entry.js
 
 ```js
-
 //#region entry.js
 tests = {
 	0: (x$1 = (y$2) => x$1 + y$2, y$1) => x$1 + y$1,

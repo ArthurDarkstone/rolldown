@@ -1,3 +1,5 @@
+# Reason
+1. different iife impl
 # Diff
 ## /out.js
 ### esbuild
@@ -14,37 +16,36 @@ var mod = (() => {
 ```
 ### rolldown
 ```js
-(function(exports, foo) {
+var mod = (function(exports, foo) {
 
-"use strict";
-const out = foo;
+
+foo = __toESM(foo);
 
 Object.defineProperty(exports, 'out', {
   enumerable: true,
   get: function () {
-    return out;
+    return foo;
   }
 });
 return exports;
 })({}, foo);
-
 ```
 ### diff
 ```diff
 ===================================================================
 --- esbuild	/out.js
-+++ rolldown	entry_js.mjs
++++ rolldown	entry.js
 @@ -1,8 +1,10 @@
 -var mod = (() => {
 -    var entry_exports = {};
 -    __export(entry_exports, {
 -        out: () => out
-+(function (exports, foo) {
-+    const out = foo;
++var mod = (function (exports, foo) {
++    foo = __toESM(foo);
 +    Object.defineProperty(exports, 'out', {
 +        enumerable: true,
 +        get: function () {
-+            return out;
++            return foo;
 +        }
      });
 -    var out = __toESM(__require("foo"));

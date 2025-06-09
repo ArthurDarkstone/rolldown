@@ -1,23 +1,44 @@
-import type { Schema } from './types'
+import type { Schema } from '../../types/schema';
 
-export function getSchemaType(
-  schema: Schema,
-): 'string' | 'boolean' | 'object' | 'number' | 'array' {
+type SchemaType =
+  | 'string'
+  | 'boolean'
+  | 'object'
+  | 'number'
+  | 'array'
+  | 'never';
+
+const priority: SchemaType[] = [
+  'object',
+  'array',
+  'string',
+  'number',
+  'boolean',
+];
+
+export function getSchemaType(schema: Schema): SchemaType {
   if ('anyOf' in schema) {
-    const types = schema.anyOf.map((s) => getSchemaType(s))
+    const types: SchemaType[] = schema.anyOf.map(getSchemaType);
+
     // Order: object > array > string > number > boolean
-    if (types.includes('object')) return 'object'
-    else if (types.includes('array')) return 'array'
-    else if (types.includes('string')) return 'string'
-    else if (types.includes('number')) return 'number'
-    else if (types.includes('boolean')) return 'boolean'
+    let result: SchemaType | undefined = priority.find((type) =>
+      types.includes(type)
+    );
+
+    if (result) {
+      return result;
+    }
   }
 
   if ('type' in schema) {
-    return schema.type as 'string' | 'boolean' | 'object' | 'number' | 'array'
+    return schema.type as SchemaType;
   }
 
-  return 'object'
+  if ('const' in schema) {
+    return typeof schema.const as SchemaType;
+  }
+
+  return 'never';
 }
 
 export function flattenSchema(
@@ -25,49 +46,54 @@ export function flattenSchema(
   base: Record<string, Schema> = {},
   parent: string = '',
 ): Record<string, Schema> {
+  if (schema === undefined) {
+    return base;
+  }
+
   for (const [k, value] of Object.entries(schema)) {
-    const key = parent ? `${parent}.${k}` : k
+    const key = parent ? `${parent}.${k}` : k;
     if (getSchemaType(value) === 'object') {
       if ('properties' in value) {
-        flattenSchema(value.properties, base, key)
+        flattenSchema(value.properties, base, key);
       } else {
-        base[key] = value
+        base[key] = value;
       }
     } else {
-      base[key] = value
+      base[key] = value;
     }
   }
-  return base
+
+  return base;
 }
 
 export function setNestedProperty<T extends object, K>(
   obj: T,
   path: string,
   value: K,
-) {
-  const keys = path.split('.') as (keyof T)[]
-  let current: any = obj
+): void {
+  const keys = path.split('.') as (keyof T)[];
+  let current: any = obj;
 
   for (let i = 0; i < keys.length - 1; i++) {
     if (!current[keys[i]]) {
-      current[keys[i]] = {}
+      current[keys[i]] = {};
     }
-    current = current[keys[i]]
+    current = current[keys[i]];
   }
 
-  const finalKey = keys[keys.length - 1]
+  const finalKey = keys[keys.length - 1];
   Object.defineProperty(current, finalKey, {
     value: value,
     writable: true,
     enumerable: true,
     configurable: true,
-  })
+  });
 }
 
 export function camelCaseToKebabCase(str: string): string {
-  return str.replace(/[A-Z]/g, (match) => `-${match.toLowerCase()}`)
+  return str.replace(/[A-Z]/g, (match) => `-${match.toLowerCase()}`);
 }
 
 export function kebabCaseToCamelCase(str: string): string {
-  return str.replace(/-./g, (match) => match[1].toUpperCase())
+  return str.replace(/-./g, (match) => match[1].toUpperCase());
 }

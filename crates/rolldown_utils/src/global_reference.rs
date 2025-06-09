@@ -672,10 +672,22 @@ static GLOBAL_IDENT: phf::Set<&str> = phf::phf_set![
   "window",
 ];
 
+/// `Math`
+static MATH_SECOND_PROP: phf::Set<&str> = phf::phf_set![
+  // Math: Static properties
+  // https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Math#Static_properties
+  "E", "LN10", "LN2", "LOG10E", "LOG2E", "PI", "SQRT1_2", "SQRT2",
+  // Math: Static methods
+  // https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Math#Static_methods
+  "abs", "acos", "acosh", "asin", "asinh", "atan", "atan2", "atanh", "cbrt", "ceil", "clz32", "cos",
+  "cosh", "exp", "expm1", "floor", "fround", "hypot", "imul", "log", "log10", "log1p", "log2",
+  "max", "min", "pow", "random", "round", "sign", "sin", "sinh", "sqrt", "tan", "tanh", "trunc",
+];
+
 /// Console method references are assumed to have no side effects
 /// https://developer.mozilla.org/en-US/docs/Web/API/console
 /// `console`
-static CONSOLE_SECOND_PROP: phf::Set<&str> = phf::phf_set![
+static CONSOLE_SECOND_PROP: [&str; 19] = [
   "assert",
   "clear",
   "count",
@@ -700,7 +712,7 @@ static CONSOLE_SECOND_PROP: phf::Set<&str> = phf::phf_set![
 /// Reflect: Static methods
 /// https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Reflect#static_methods
 /// `Reflect`
-static REFLECT_SECOND_PROP: phf::Set<&str> = phf::phf_set![
+static REFLECT_SECOND_PROP: [&str; 13] = [
   "apply",
   "construct",
   "defineProperty",
@@ -716,20 +728,8 @@ static REFLECT_SECOND_PROP: phf::Set<&str> = phf::phf_set![
   "setPrototypeOf",
 ];
 
-/// `Math`
-static MATH_SECOND_PROP: phf::Set<&str> = phf::phf_set![
-  // Math: Static properties
-  // https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Math#Static_properties
-  "E", "LN10", "LN2", "LOG10E", "LOG2E", "PI", "SQRT1_2", "SQRT2",
-  // Math: Static methods
-  // https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Math#Static_methods
-  "abs", "acos", "acosh", "asin", "asinh", "atan", "atan2", "atanh", "cbrt", "ceil", "clz32", "cos",
-  "cosh", "exp", "expm1", "floor", "fround", "hypot", "imul", "log", "log10", "log1p", "log2",
-  "max", "min", "pow", "random", "round", "sign", "sin", "sinh", "sqrt", "tan", "tanh", "trunc",
-];
-
 /// `Object`
-static OBJECT_SECOND_PROP: phf::Set<&str> = phf::phf_set![
+static OBJECT_SECOND_PROP: [&str; 21] = [
   // Object: Static methods
   // https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object#Static_methods
   "assign",
@@ -756,7 +756,7 @@ static OBJECT_SECOND_PROP: phf::Set<&str> = phf::phf_set![
 ];
 
 /// `Symbol`
-static SYMBOL_SECOND_PROP: phf::Set<&str> = phf::phf_set![
+static SYMBOL_SECOND_PROP: [&str; 15] = [
   // Symbol: Static properties
   // https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Symbol#static_properties
   "asyncDispose",
@@ -777,7 +777,7 @@ static SYMBOL_SECOND_PROP: phf::Set<&str> = phf::phf_set![
 ];
 
 /// `Object.prototype`
-static OBJECT_PROTOTYPE_THIRD_PROP: phf::Set<&str> = phf::phf_set![
+static OBJECT_PROTOTYPE_THIRD_PROP: [&str; 12] = [
   // Object: Instance methods
   // https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object#Instance_methods
   "__defineGetter__",
@@ -794,35 +794,36 @@ static OBJECT_PROTOTYPE_THIRD_PROP: phf::Set<&str> = phf::phf_set![
   "watch",
 ];
 
+#[inline]
 pub fn is_global_ident_ref(ident: &str) -> bool {
   GLOBAL_IDENT.contains(ident)
 }
 
 pub fn is_side_effect_free_member_expr_of_len_two(member_expr: &[Atom]) -> bool {
-  if member_expr.len() != 2 {
-    return false;
-  }
-  match member_expr[0].as_ref() {
-    "console" => CONSOLE_SECOND_PROP.contains(member_expr[1].as_ref()),
-    "Reflect" => REFLECT_SECOND_PROP.contains(member_expr[1].as_ref()),
-    "Math" => MATH_SECOND_PROP.contains(member_expr[1].as_ref()),
-    "Object" => OBJECT_SECOND_PROP.contains(member_expr[1].as_ref()),
-    "Symbol" => SYMBOL_SECOND_PROP.contains(member_expr[1].as_ref()),
-    "JSON" => member_expr[1] == "stringify" || member_expr[1] == "parse",
+  match member_expr {
+    [first, second] => {
+      let second = second.as_str();
+      match first.as_str() {
+        "console" => CONSOLE_SECOND_PROP.contains(&second),
+        "Reflect" => REFLECT_SECOND_PROP.contains(&second),
+        "Math" => MATH_SECOND_PROP.contains(second),
+        "Object" => OBJECT_SECOND_PROP.contains(&second),
+        "Symbol" => SYMBOL_SECOND_PROP.contains(&second),
+        "JSON" => second == "stringify" || second == "parse",
+        _ => false,
+      }
+    }
     _ => false,
   }
 }
 
 pub fn is_side_effect_free_member_expr_of_len_three(member_expr: &[Atom]) -> bool {
-  if member_expr.len() != 3 {
-    return false;
+  match member_expr {
+    [first, second, third] => {
+      first == "Object"
+        && second == "prototype"
+        && OBJECT_PROTOTYPE_THIRD_PROP.contains(&third.as_str())
+    }
+    _ => false,
   }
-  if member_expr[0].as_ref() != "Object" {
-    return false;
-  }
-
-  if member_expr[1].as_ref() != "prototype" {
-    return false;
-  }
-  OBJECT_PROTOTYPE_THIRD_PROP.contains(member_expr[2].as_str())
 }

@@ -3,10 +3,9 @@ source: crates/rolldown_testing/src/integration_test.rs
 ---
 # Assets
 
-## entry_js.mjs
+## entry.js
 
 ```js
-
 //#region shouldUsePercent_1.txt
 var shouldUsePercent_1_default = "data:text/plain;charset=utf-8,%0A%0A%0A";
 
@@ -16,11 +15,11 @@ var shouldUsePercent_2_default = "data:text/plain;charset=utf-8,%0A%0A%0A%0A";
 
 //#endregion
 //#region shouldUseBase64_1.txt
-var shouldUseBase64_1_default = "data:text/plain;base64,CgoKCgo=";
+var shouldUseBase64_1_default = "data:text/plain;charset=utf-8;base64,CgoKCgo=";
 
 //#endregion
 //#region shouldUseBase64_2.txt
-var shouldUseBase64_2_default = "data:text/plain;base64,CgoKCgoK";
+var shouldUseBase64_2_default = "data:text/plain;charset=utf-8;base64,CgoKCgoK";
 
 //#endregion
 //#region entry.js

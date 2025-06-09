@@ -3,16 +3,15 @@ source: crates/rolldown_testing/src/integration_test.rs
 ---
 # Assets
 
-## function-nested_js.mjs
+## function-nested.js
 
 ```js
-
 //#region function-nested.js
 function x() {
 	{
 		var a;
-		for (var b; 0;);
-		for (var { c, x: [d] } = {}; 0;);
+		var b;
+		var { c, x: [d] } = {};
 		for (var e of []);
 		for (var { f, x: [g] } of []);
 		for (var h in {});
@@ -25,15 +24,14 @@ x();
 
 //#endregion
 ```
-## function_js.mjs
+## function.js
 
 ```js
-
 //#region function.js
 function x() {
 	var a;
-	for (var b; 0;);
-	for (var { c, x: [d] } = {}; 0;);
+	var b;
+	var { c, x: [d] } = {};
 	for (var e of []);
 	for (var { f, x: [g] } of []);
 	for (var h in {});
@@ -45,15 +43,12 @@ x();
 
 //#endregion
 ```
-## let_js.mjs
+## let.js
 
 ```js
-
 //#region let.js
 {
 	let a;
-	for (let b; 0;);
-	for (let { c, x: [d] } = {}; 0;);
 	for (let e of []);
 	for (let { f, x: [g] } of []);
 	for (let h in {});
@@ -62,15 +57,14 @@ x();
 
 //#endregion
 ```
-## nested_js.mjs
+## nested.js
 
 ```js
-
 //#region nested.js
 {
 	var a;
-	for (var b; 0;);
-	for (var { c, x: [d] } = {}; 0;);
+	var b;
+	var { c, x: [d] } = {};
 	for (var e of []);
 	for (var { f, x: [g] } of []);
 	for (var h in {});
@@ -81,13 +75,11 @@ x();
 
 //#endregion
 ```
-## top-level_js.mjs
+## top-level.js
 
 ```js
-
 //#region top-level.js
-for (var b; 0;);
-for (var { c, x: [d] } = {}; 0;);
+var { c, x: [d] } = {};
 for (var e of []);
 for (var { f, x: [g] } of []);
 for (var h in {});

@@ -2,7 +2,7 @@
 //! - is meant to be a bundler-specialized string type for rolldown.
 //! - to smooth integration with `oxc`'s string types.
 
-use std::{fmt::Display, ops::Deref};
+use std::{borrow::Borrow, fmt::Display, ops::Deref};
 
 /// `OxcStr` is a alias of string type oxc used internally.
 pub type OxcStr = oxc::span::CompactStr;
@@ -30,6 +30,10 @@ impl Rstr {
     Self(OxcStr::new(s))
   }
 
+  pub fn inner(&self) -> &OxcStr {
+    &self.0
+  }
+
   pub fn as_str(&self) -> &str {
     self.0.as_str()
   }
@@ -49,8 +53,20 @@ impl Deref for Rstr {
   }
 }
 
+impl AsRef<str> for Rstr {
+  fn as_ref(&self) -> &str {
+    self.0.as_str()
+  }
+}
+
 impl Display for Rstr {
   fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
     self.as_str().fmt(f)
+  }
+}
+
+impl Borrow<str> for Rstr {
+  fn borrow(&self) -> &str {
+    self.as_str()
   }
 }

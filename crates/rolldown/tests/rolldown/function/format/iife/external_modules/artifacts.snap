@@ -6,22 +6,28 @@ source: crates/rolldown_testing/src/integration_test.rs
 ## MISSING_GLOBAL_NAME
 
 ```text
+[MISSING_GLOBAL_NAME] Warning: No name was provided for external module "node:fs" in "output.globals" – guessing "node_fs".
+
+```
+## MISSING_GLOBAL_NAME
+
+```text
 [MISSING_GLOBAL_NAME] Warning: No name was provided for external module "node:path" in "output.globals" – guessing "node_path".
 
 ```
 # Assets
 
-## main.mjs
+## main.js
 
 ```js
-(function(node_path) {
+(function(node_path, node_fs) {
 
-"use strict";
-const { default: nodePath } = node_path;
+
+node_path = __toESM(node_path);
 
 //#region main.js
-console.log(nodePath);
+console.log(node_path.default);
 
 //#endregion
-})(node_path);
+})(node_path, node_fs);
 ```

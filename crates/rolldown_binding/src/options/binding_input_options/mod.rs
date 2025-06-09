@@ -1,30 +1,41 @@
-// cSpell:disable
+mod binding_debug_options;
+mod binding_defer_sync_scan_data;
+mod binding_experimental_options;
+mod binding_input_item;
+mod binding_make_absolute_externals_relative;
+mod binding_resolve_options;
+mod binding_treeshake;
+mod binding_watch_option;
 
+pub mod binding_inject_import;
+pub mod binding_jsx;
+
+use binding_debug_options::BindingDebugOptions;
+use binding_defer_sync_scan_data::BindingDeferSyncScanDataOption;
+use binding_make_absolute_externals_relative::BindingMakeAbsoluteExternalsRelative;
+use derive_more::Debug;
+use napi::bindgen_prelude::FnArgs;
+use napi_derive::napi;
+use rustc_hash::FxBuildHasher;
 use std::collections::HashMap;
 
+use binding_inject_import::BindingInjectImport;
+use binding_input_item::BindingInputItem;
+use binding_jsx::BindingJsx;
+use binding_resolve_options::BindingResolveOptions;
+use binding_watch_option::BindingWatchOption;
+
+use super::plugin::BindingPluginOrParallelJsPluginPlaceholder;
+use crate::generated::binding_checks_options;
 use crate::types::{
   binding_log::BindingLog, binding_log_level::BindingLogLevel, js_callback::JsCallback,
 };
-use binding_inject_import::BindingInjectImport;
-use derivative::Derivative;
-use napi_derive::napi;
-use serde::Deserialize;
 
-use self::{binding_input_item::BindingInputItem, binding_resolve_options::BindingResolveOptions};
-
-use super::plugin::BindingPluginOrParallelJsPluginPlaceholder;
-
-mod binding_experimental_options;
-pub mod binding_inject_import;
-mod binding_input_item;
-mod binding_resolve_options;
-mod treeshake;
+pub type BindingOnLog = Option<JsCallback<FnArgs<(String, BindingLog)>, ()>>;
 
 #[napi(object, object_to_js = false)]
-#[derive(Deserialize, Default, Derivative)]
-#[serde(rename_all = "camelCase")]
-#[derivative(Debug)]
-pub struct BindingInputOptions {
+#[derive(Default, Debug)]
+pub struct BindingInputOptions<'env> {
   // Not going to be supported
   // @deprecated Use the "inlineDynamicImports" output option instead.
   // inlineDynamicImports?: boolean;
@@ -34,12 +45,11 @@ pub struct BindingInputOptions {
   // cache?: false | RollupCache;
   // context?: string;
   // experimentalCacheExpiry?: number;
-  #[derivative(Debug = "ignore")]
-  #[serde(skip_deserializing)]
+  #[debug(skip)]
   #[napi(
     ts_type = "undefined | ((source: string, importer: string | undefined, isResolved: boolean) => boolean)"
   )]
-  pub external: Option<JsCallback<(String, Option<String>, bool), bool>>,
+  pub external: Option<JsCallback<FnArgs<(String, Option<String>, bool)>, bool>>,
   pub input: Vec<BindingInputItem>,
   // makeAbsoluteExternalsRelative?: boolean | 'ifRelativeSource';
   // /** @deprecated Use the "manualChunks" output option instead. */
@@ -50,9 +60,8 @@ pub struct BindingInputOptions {
   // moduleContext?: ((id: string) => string | null | void) | { [id: string]: string };
   // onwarn?: WarningHandlerWithDefault;
   // perf?: boolean;
-  #[serde(skip_deserializing)]
   #[napi(ts_type = "(BindingBuiltinPlugin | BindingPluginOptions | undefined)[]")]
-  pub plugins: Vec<BindingPluginOrParallelJsPluginPlaceholder>,
+  pub plugins: Vec<BindingPluginOrParallelJsPluginPlaceholder<'env>>,
   pub resolve: Option<BindingResolveOptions>,
   // preserveEntrySignatures?: PreserveEntrySignaturesOption;
   // /** @deprecated Use the "preserveModules" output option instead. */
@@ -60,28 +69,41 @@ pub struct BindingInputOptions {
   // pub preserve_symlinks: bool,
   pub shim_missing_exports: Option<bool>,
   // strictDeprecations?: boolean;
-  // pub treeshake: Option<bool>,
-  // watch?: WatcherOptions | false;
   #[napi(ts_type = "'node' | 'browser' | 'neutral'")]
   pub platform: Option<String>,
-  #[serde(skip_deserializing)]
-  pub log_level: Option<BindingLogLevel>,
-  #[derivative(Debug = "ignore")]
-  #[serde(skip_deserializing)]
+  pub log_level: BindingLogLevel,
+  #[debug(skip)]
   #[napi(ts_type = "(logLevel: 'debug' | 'warn' | 'info', log: BindingLog) => void")]
   pub on_log: BindingOnLog,
   // extra
   pub cwd: String,
   // pub builtins: BuiltinsOptions,
-  pub treeshake: Option<treeshake::BindingTreeshake>,
+  pub treeshake: Option<binding_treeshake::BindingTreeshake>,
 
-  pub module_types: Option<HashMap<String, String>>,
+  pub module_types: Option<HashMap<String, String, FxBuildHasher>>,
   pub define: Option<Vec<(/* Target to be replaced */ String, /* Replacement */ String)>>,
-  #[serde(skip_deserializing)]
+  pub drop_labels: Option<Vec<String>>,
   #[napi(ts_type = "Array<BindingInjectImportNamed | BindingInjectImportNamespace>")]
   pub inject: Option<Vec<BindingInjectImport>>,
   pub experimental: Option<binding_experimental_options::BindingExperimentalOptions>,
   pub profiler_names: Option<bool>,
+  #[debug(skip)]
+  pub jsx: Option<BindingJsx>,
+  #[debug(skip)]
+  pub transform: Option<oxc_transform_napi::TransformOptions>,
+  pub watch: Option<BindingWatchOption>,
+  pub keep_names: Option<bool>,
+  pub checks: Option<binding_checks_options::BindingChecksOptions>,
+  #[debug(skip)]
+  #[napi(ts_type = "undefined | (() => BindingDeferSyncScanData[])")]
+  pub defer_sync_scan_data: Option<BindingDeferSyncScanDataOption>,
+  pub make_absolute_externals_relative: Option<BindingMakeAbsoluteExternalsRelative>,
+  pub debug: Option<BindingDebugOptions>,
+  #[debug(skip)]
+  #[napi(ts_type = "() => void")]
+  // TODO: The `FnArgs<()>` is not supported.
+  pub invalidate_js_side_cache: Option<JsCallback<FnArgs<(Option<bool>,)>, ()>>,
+  #[debug(skip)]
+  #[napi(ts_type = "(id: string, success: boolean) => void")]
+  pub mark_module_loaded: Option<JsCallback<FnArgs<(String, bool)>, ()>>,
 }
-
-pub type BindingOnLog = Option<JsCallback<(String, BindingLog), ()>>;

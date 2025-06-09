@@ -11,18 +11,17 @@ source: crates/rolldown_testing/src/integration_test.rs
 ```
 # Assets
 
-## entry_js.mjs
+## entry.js
 
 ```js
 (function(exports) {
 
-"use strict";
 
 //#region entry.js
 const foo = 123;
 
 //#endregion
-exports.foo = foo
+exports.foo = foo;
 return exports;
 })({});
 ```

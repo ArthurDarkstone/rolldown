@@ -1,32 +1,32 @@
-import Parser from 'web-tree-sitter'
+import { Parser } from 'web-tree-sitter';
 // import Go from 'tree-sitter-go'
-import fs from 'fs-extra'
-import fsp from 'node:fs/promises'
-import * as path from 'node:path'
-import * as changeCase from 'change-case'
-import chalk from 'chalk'
-import * as dedent from 'dedent'
-import * as nodeHttps from 'node:https'
-import * as nodeFs from 'node:fs'
-import * as fsExtra from 'fs-extra'
+import chalk from 'chalk';
+import * as changeCase from 'change-case';
+import * as dedent from 'dedent';
+import fs from 'fs-extra';
+import * as fsExtra from 'fs-extra';
+import * as nodeFs from 'node:fs';
+import fsp from 'node:fs/promises';
+import * as nodeHttps from 'node:https';
+import * as path from 'node:path';
 
 const TREE_SITTER_WASM_GO_FILENAME = path.resolve(
   import.meta.dirname,
   '../../tmp/tree-sitter-go.wasm',
-)
+);
 
 // How to use this script
 // 1. Set the test suite name.
 
 /** @type {TestSuiteName} {@link suites} */
 if (process.argv.length < 3) {
-  throw new Error('Please provide the test suite name')
+  throw new Error('Please provide the test suite name');
 }
 
-const SUITE_NAME = process.argv[2]
-console.log(`Processing test suite: ${SUITE_NAME}`)
+const SUITE_NAME = process.argv[2];
+console.log(`Processing test suite: ${SUITE_NAME}`);
 
-const __dirname = import.meta.dirname
+const __dirname = import.meta.dirname;
 
 // 2. Set the tests root directory
 
@@ -34,7 +34,7 @@ const TESTS_ROOT_DIR = path.resolve(
   __dirname,
   '../../crates/rolldown/tests/esbuild',
   SUITE_NAME,
-)
+);
 
 // 3. Download .go test source file located in the suites object
 //    for each suite and place it under "scripts" dir.
@@ -61,83 +61,50 @@ const suites = /** @type {const} */ ({
     sourcePath: './bundler_dce_test.go',
     sourceGithubUrl:
       'https://raw.githubusercontent.com/evanw/esbuild/main/internal/bundler_tests/bundler_dce_test.go',
-    ignoreCases: [
-      'const_value_inlining_assign',
-      'const_value_inlining_bundle',
-      'dce_of_expr_after_keep_names_issue3195',
-      'dce_of_using_declarations',
-      'dce_type_of_compare_string_guard_condition',
-      'dce_type_of_equals_string_guard_condition',
-      'dead_code_following_jump',
-      'drop_labels',
-      'inline_empty_function_calls',
-      'inline_function_call_behavior_changes',
-      'inline_identity_function_calls',
-      'multiple_declaration_tree_shaking',
-      'nested_function_inlining_with_spread',
-      'pure_calls_with_spread',
-      'remove_unused_pure_comment_calls',
-      'top_level_function_inlining_with_spread',
-      'tree_shaking_class_property',
-      'tree_shaking_class_static_property',
-      'tree_shaking_lowered_class_static_field',
-      'tree_shaking_object_property',
-      'dce_of_using_declarations',
-    ],
   },
   importstar: {
-    name: 'import_star',
+    name: 'importstar',
     sourcePath: './bundler_importstar_test.go',
     sourceGithubUrl:
       'https://raw.githubusercontent.com/evanw/esbuild/main/internal/bundler_tests/bundler_importstar_test.go',
-
-    ignoreCases: [],
   },
   importstar_ts: {
-    name: 'import_star_ts',
+    name: 'importstar_ts',
     sourcePath: './bundler_importstar_ts_test.go',
     sourceGithubUrl:
       'https://raw.githubusercontent.com/evanw/esbuild/main/internal/bundler_tests/bundler_importstar_ts_test.go',
-
-    ignoreCases: [],
   },
   ts: {
     name: 'bundler_ts',
     sourcePath: './bundler_ts_test.go',
     sourceGithubUrl:
       'https://raw.githubusercontent.com/evanw/esbuild/main/internal/bundler_tests/bundler_ts_test.go',
-    ignoreCases: [],
   },
   lower: {
     name: 'lower',
     sourcePath: './bundler_lower_test.go',
     sourceGithubUrl:
       'https://raw.githubusercontent.com/evanw/esbuild/main/internal/bundler_tests/bundler_lower_test.go',
-    ignoreCases: [
-      'lower_async_arrow_super_es2016',
-      'lower_async_arrow_super_setter_es2016',
-      'lower_export_star_as_name_collision',
-      'lower_forbid_strict_mode_syntax',
-      'lower_nested_function_direct_eval',
-      'lower_private_super_es2021',
-      'lower_private_super_es2022',
-      'lower_static_async_arrow_super_es2016',
-      'lower_static_async_arrow_super_setter_es2016',
-      'lower_strict_mode_syntax',
-      'lower_using',
-      'lower_using_hoisting',
-      'lower_using_unsupported_async',
-      'lower_using_unsupported_using_and_async',
-    ],
   },
   loader: {
     name: 'loader',
     sourcePath: './bundler_loader_test.go',
     sourceGithubUrl:
       'https://raw.githubusercontent.com/evanw/esbuild/main/internal/bundler_tests/bundler_loader_test.go',
-    ignoreCases: [],
   },
-})
+  splitting: {
+    name: 'splitting',
+    sourcePath: './bundler_splitting_test.go',
+    sourceGithubUrl:
+      'https://raw.githubusercontent.com/evanw/esbuild/main/internal/bundler_tests/bundler_splitting_test.go',
+  },
+  glob: {
+    name: 'glob',
+    sourcePath: './bundler_glob_test.go',
+    sourceGithubUrl:
+      'https://raw.githubusercontent.com/evanw/esbuild/main/internal/bundler_tests/bundler_glob_test.go',
+  },
+});
 /**
  * The key of the suites constant. {@link suites}
  * @typedef {keyof suites} TestSuiteName
@@ -159,41 +126,40 @@ const suites = /** @type {const} */ ({
  * Performs {@link process.exit} with helpful text error if cannot find(and then download) .go source file based on test suite name {@link suites}
  */
 async function readTestSuiteSource(testSuiteName) {
-  const testSuite = suites[testSuiteName]
-  const sourcePath = path.resolve(__dirname, testSuite.sourcePath)
+  const testSuite = suites[testSuiteName];
+  const sourcePath = path.resolve(__dirname, testSuite.sourcePath);
   try {
-    return fs.readFileSync(sourcePath).toString()
+    return fs.readFileSync(sourcePath).toString();
   } catch {
-    console.log(`Could not read .go source file from ${sourcePath}.`)
-    console.log(`Attempting to download it from ${testSuite.sourceGithubUrl}.`)
-    console.log('...')
+    console.log(`Could not read .go source file from ${sourcePath}.`);
+    console.log(`Attempting to download it from ${testSuite.sourceGithubUrl}.`);
+    console.log('...');
 
     // download from github
     try {
-      const response = await fetch(testSuite.sourceGithubUrl)
-      const text = await response.text()
+      const response = await fetch(testSuite.sourceGithubUrl);
+      const text = await response.text();
       if (typeof text === 'string') {
         // save under scripts directory
-        await fsp.writeFile(sourcePath, text)
-        console.log(`Downloaded and saved at ${sourcePath}.`)
-        return fs.readFileSync(sourcePath).toString()
+        await fsp.writeFile(sourcePath, text);
+        console.log(`Downloaded and saved at ${sourcePath}.`);
+        return fs.readFileSync(sourcePath).toString();
       } else {
-        throw new Error('Unexpected shape of source file')
+        throw new Error('Unexpected shape of source file');
       }
     } catch (err2) {
       console.log(
         'Could not download .go source file. Please download it manually and save it under the "scripts" directory.',
         err2,
-      )
-      console.log(`Download link: ${testSuite.sourceGithubUrl}`)
-      process.exit(1)
+      );
+      console.log(`Download link: ${testSuite.sourceGithubUrl}`);
+      process.exit(1);
     }
   }
 }
 
 /** The contents of the .go test source file. {@link suites} */
-const source = await readTestSuiteSource(SUITE_NAME)
-console.log(source)
+const source = await readTestSuiteSource(SUITE_NAME);
 
 // This is up to suit name
 // const ignoreCases = suites[SUITE_NAME]?.ignoreCases ?? []
@@ -233,131 +199,138 @@ let queryString = `
       )
       )
 )
-`
+`;
 
 /**
  * @param {import("web-tree-sitter").SyntaxNode} root
  * @returns {Record<string, Parser.SyntaxNode>}
- * */
+ */
 function getTopLevelBinding(root) {
   /** @type {Record<string, Parser.SyntaxNode>} */
-  const binding = {}
+  const binding = {};
   root.namedChildren.forEach((child) => {
     if (child.type === 'var_declaration') {
-      const var_spec = child.namedChildren[0]
-      const name = var_spec.namedChild(0)?.text
-      const decl = var_spec.namedChild(1)
+      const var_spec = child.namedChildren[0];
+      const name = var_spec.namedChild(0)?.text;
+      const decl = var_spec.namedChild(1);
       if (!name || !decl) {
-        return
+        return;
       }
-      binding[name] = decl
+      binding[name] = decl;
     }
-  })
-  return binding
+  });
+  return binding;
 }
 
-await Parser.init()
-await ensureTreeSitterWasmGo()
-const Lang = await Parser.Language.load(TREE_SITTER_WASM_GO_FILENAME)
-const parser = new Parser()
-parser.setLanguage(Lang)
-const tree = parser.parse(source)
-let topLevelBindingMap = getTopLevelBinding(tree.rootNode)
-const query = Lang.query(queryString)
+await Parser.init();
+await ensureTreeSitterWasmGo();
+const Lang = await Parser.Language.load(TREE_SITTER_WASM_GO_FILENAME);
+const parser = new Parser();
+parser.setLanguage(Lang);
+const tree = parser.parse(source);
+let topLevelBindingMap = getTopLevelBinding(tree.rootNode);
+const query = Lang.query(queryString);
 
 /**
  * @param {string} dir - The directory path.
  * @returns {boolean}
  */
 function isDirEmptySync(dir) {
-  let list = fs.readdirSync(dir)
-  return list.length === 0
+  let list = fs.readdirSync(dir);
+  return list.length === 0;
 }
 
 for (let i = 0, len = tree.rootNode.namedChildren.length; i < len; i++) {
-  let child = tree.rootNode.namedChild(i)
+  let child = tree.rootNode.namedChild(i);
   if (child?.type == 'function_declaration') {
-    let testCaseName = child.namedChild(0)?.text
+    let testCaseName = child.namedChild(0)?.text;
     if (!testCaseName) {
-      console.error(`No test case name, root's child index: ${i}`)
-      continue
+      console.error(`No test case name, root's child index: ${i}`);
+      continue;
     }
-    testCaseName = testCaseName.slice(4) // every function starts with "Test"
-    testCaseName = changeCase.snakeCase(testCaseName)
+    testCaseName = testCaseName.slice(4); // every function starts with "Test"
+    testCaseName = changeCase.snakeCase(testCaseName);
 
-    console.log('testCaseName: ', testCaseName)
+    console.log('testCaseName: ', testCaseName);
 
     // let isIgnored = false
     // Skip some test cases by ignoredTestName
     // if (ignoredTestPattern.some((name) => testCaseName?.includes(name))) {
     //   isIgnored = true
     // }
-    // @ts-ignore
     // if (ignoreCases.includes(testCaseName)) {
     //   isIgnored = true
     // }
     let bundle_field_list = query.captures(child).filter((item) => {
-      return item.name === 'element_list'
-    })
+      return item.name === 'element_list';
+    });
     /** @type {JsConfig} */
-    let jsConfig = Object.create(null)
+    let jsConfig = Object.create(null);
     bundle_field_list.forEach((cap) => {
-      processKeyElement(cap.node, jsConfig, topLevelBindingMap)
-    })
+      processKeyElement(cap.node, jsConfig, topLevelBindingMap);
+    });
 
-    const fileList = jsConfig['files']
+    const fileList = jsConfig['files'];
 
-    const testDir = path.resolve(TESTS_ROOT_DIR, testCaseName)
-    const ignoredTestDir = path.resolve(TESTS_ROOT_DIR, `.${testCaseName}`)
+    const testDir = path.resolve(TESTS_ROOT_DIR, testCaseName);
+    const ignoredTestDir = path.resolve(TESTS_ROOT_DIR, `.${testCaseName}`);
 
     // Cause if you withdraw directory in git system, git will cleanup dir but leave the directory alone
     if (
       (fs.existsSync(testDir) && !isDirEmptySync(testDir)) ||
       (fs.existsSync(ignoredTestDir) && !isDirEmptySync(ignoredTestDir))
     ) {
-      continue
+      continue;
     } else {
-      fs.ensureDirSync(testDir)
+      fs.ensureDirSync(testDir);
     }
-    let prefix = calculatePrefixDir(fileList.map((item) => item.name))
+    let prefix = calculatePrefixDir(fileList.map((item) => item.name));
     fileList.forEach((file) => {
-      let normalizedName = file.name.slice(prefix.length)
+      let normalizedName = file.name.slice(prefix.length);
 
       if (path.isAbsolute(normalizedName)) {
-        normalizedName = normalizedName.slice(1)
+        normalizedName = normalizedName.slice(1);
       }
-      const absFile = path.resolve(testDir, normalizedName)
-      const dirName = path.dirname(absFile)
-      fs.ensureDirSync(dirName)
-      fs.writeFileSync(absFile, file.content)
-    })
+      const absFile = path.resolve(testDir, normalizedName);
+      const dirName = path.dirname(absFile);
+      fs.ensureDirSync(dirName);
+      fs.writeFileSync(absFile, file.content);
+    });
 
     // entry
     /** @type {{config: {input: Array<{name: string; import: string}>}}} */
-    const config = { config: Object.create({}) }
-    const entryPaths = jsConfig['entryPaths'] ?? []
+    const config = { config: Object.create({}) };
+    let entryPaths = jsConfig['entryPaths'] ?? [];
     if (!entryPaths.length) {
-      console.error(chalk.red(`No entryPaths found`))
+      console.error(chalk.red(`No entryPaths found`));
+    }
+    if (entryPaths.length === 1 && entryPaths[0] === '/*') {
+      entryPaths = fileList.map((item) => item.name);
     }
     let input = entryPaths.map((p) => {
-      let normalizedName = p.slice(prefix.length)
+      let normalizedName = p.slice(prefix.length);
       if (path.isAbsolute(normalizedName)) {
-        normalizedName = normalizedName.slice(1)
+        normalizedName = normalizedName.slice(1);
       }
       return {
-        name: normalizedName.split('/').join('_').split('.').join('_'),
+        name: normalizedName
+          .split('/')
+          .filter(Boolean)
+          .join('_')
+          .split('.')
+          .join('_'),
         import: normalizedName,
-      }
-    })
-    config.config.input = input
-    const configFilePath = path.resolve(testDir, '_config.json')
-    fs.writeFileSync(configFilePath, JSON.stringify(config, null, 2))
+      };
+    });
+    config.config.input = input;
+    const configFilePath = path.resolve(testDir, '_config.json');
+    fs.writeFileSync(configFilePath, JSON.stringify(config, null, 2));
     // TODO: options
 
-    let log = jsConfig['expectedCompileLog']
+    let log = jsConfig['expectedCompileLog'];
     if (log) {
-      const compileLogPath = path.resolve(testDir, 'compile-log.txt')
-      fs.writeFileSync(compileLogPath, log)
+      const compileLogPath = path.resolve(testDir, 'compile-log.txt');
+      fs.writeFileSync(compileLogPath, log);
     }
   }
 }
@@ -368,14 +341,14 @@ for (let i = 0, len = tree.rootNode.namedChildren.length; i < len; i++) {
  */
 function calculatePrefixDir(paths) {
   if (paths.length === 1) {
-    return ''
+    return '';
   }
 
   // Split each path into directory components
-  const pathComponents = paths.map((path) => path.split('/'))
+  const pathComponents = paths.map((path) => path.split('/'));
 
   // Initialize the common directory prefix with the first path
-  let commonPrefix = pathComponents[0]
+  let commonPrefix = pathComponents[0];
 
   // Iterate over each path's components
   for (let i = 1; i < pathComponents.length; i++) {
@@ -383,14 +356,14 @@ function calculatePrefixDir(paths) {
     for (let j = 0; j < commonPrefix.length; j++) {
       if (pathComponents[i][j] !== commonPrefix[j]) {
         // If components don't match, truncate the common prefix
-        commonPrefix = commonPrefix.slice(0, j)
-        break
+        commonPrefix = commonPrefix.slice(0, j);
+        break;
       }
     }
   }
 
   // Join the common directory components back into a path
-  return commonPrefix.join('/')
+  return commonPrefix.join('/');
 }
 
 /**
@@ -400,39 +373,62 @@ function calculatePrefixDir(paths) {
  */
 function processFiles(node, binding) {
   if (node.firstChild?.type === 'identifier') {
-    let name = node.firstChild.text
+    let name = node.firstChild.text;
     if (binding[name]) {
-      node = binding[name]
+      node = binding[name];
     }
   }
   /** @type Array<{name: string; content: string}> */
-  let fileList = []
-  let compositeLiteral = node.namedChild(0)
-  let body = compositeLiteral?.namedChild(1)
+  let fileList = [];
+  let compositeLiteral = node.namedChild(0);
+  let body = compositeLiteral?.namedChild(1);
   try {
     if (!body) {
-      throw new Error('No body')
+      throw new Error('No body');
     }
     body.namedChildren.forEach((child) => {
       if (child.type !== 'keyed_element') {
-        return
+        return;
       }
-      let name = child.namedChild(0)?.text.slice(1, -1)
+      let name = child.namedChild(0)?.text.slice(1, -1);
       if (!name) {
-        throw new Error(`File has no name`)
+        throw new Error(`File has no name`);
       }
-      let content = child.namedChild(1)?.text.slice(1, -1).trim() ?? ''
-      content = dedent.default(content)
+      let content = extractStringLiteral(child.namedChild(1)?.namedChild?.(0));
+      content = dedent.default(content);
       fileList.push({
         name,
         content,
-      })
-    })
-    return fileList
+      });
+    });
+    return fileList;
   } catch (err) {
-    console.error(`Error occurred when processFiles: ${chalk.red(err)}`)
-    return []
+    console.error(`Error occurred when processFiles: ${chalk.red(err)}`);
+    return [];
   }
+}
+
+/**
+ * @param {Parser.SyntaxNode} node
+ */
+function extractStringLiteral(node) {
+  if (!node) {
+    return '';
+  }
+  let ret = '';
+  switch (node.type) {
+    case 'binary_expression':
+      ret += extractStringLiteral(node.namedChild(0));
+      ret += extractStringLiteral(node.namedChild(1));
+      break;
+    case 'raw_string_literal':
+    case 'interpreted_string_literal':
+      ret += node.text.slice(1, -1);
+      break;
+    default:
+      throw new Error(`Unexpected node type: ${node.type}`);
+  }
+  return ret;
 }
 
 /**
@@ -442,31 +438,31 @@ function processFiles(node, binding) {
  */
 function processEntryPath(node, binding) {
   if (node.firstChild?.type === 'identifier') {
-    let name = node.firstChild.text
+    let name = node.firstChild.text;
     if (binding[name]) {
-      node = binding[name]
+      node = binding[name];
     }
   }
   /** @type {string[]} */
-  let entryList = []
-  let compositeLiteral = node.namedChild(0)
-  let body = compositeLiteral?.namedChild(1)
+  let entryList = [];
+  let compositeLiteral = node.namedChild(0);
+  let body = compositeLiteral?.namedChild(1);
   try {
     if (!body) {
-      throw new Error('No body')
+      throw new Error('No body');
     }
     body.namedChildren.forEach((child) => {
-      let entry = child.namedChild(0)?.text.slice(1, -1)
+      let entry = child.namedChild(0)?.text.slice(1, -1);
       if (!entry) {
-        throw new Error('No entry')
+        throw new Error('No entry');
       }
-      entryList.push(entry)
-    })
+      entryList.push(entry);
+    });
 
-    return entryList
+    return entryList;
   } catch (err) {
-    console.error(`Error occurred when processEntryPath: ${chalk.red(err)}`)
-    return []
+    console.error(`Error occurred when processEntryPath: ${chalk.red(err)}`);
+    return [];
   }
 }
 
@@ -483,46 +479,46 @@ function processOptions(_node) {}
  * @returns {void}
  */
 function processKeyElement(node, jsConfig, binding) {
-  let keyValue = node.namedChild(0)?.text
-  let child = node.namedChild(1)
+  let keyValue = node.namedChild(0)?.text;
+  let child = node.namedChild(1);
   if (!child) {
-    throw new Error(`Could not find namedChild(1)`)
+    throw new Error(`Could not find namedChild(1)`);
   }
   switch (keyValue) {
     case 'files':
-      jsConfig['files'] = processFiles(child, binding)
-      break
+      jsConfig['files'] = processFiles(child, binding);
+      break;
     case 'entryPaths':
-      jsConfig['entryPaths'] = processEntryPath(child, binding)
-      break
+      jsConfig['entryPaths'] = processEntryPath(child, binding);
+      break;
     case 'options':
-      jsConfig['options'] = processOptions(child)
-      break
+      jsConfig['options'] = processOptions(child);
+      break;
     case 'expectedCompileLog':
-      jsConfig['expectedCompileLog'] = child.text.slice(1, -1)
-      break
+      jsConfig['expectedCompileLog'] = child.text.slice(1, -1);
+      break;
     default:
-      console.log(chalk.yellow(`unknown filed ${keyValue}`))
-      break
+      console.log(chalk.yellow(`unknown filed ${keyValue}`));
+      break;
   }
 }
 
 function ensureTreeSitterWasmGo() {
   if (nodeFs.existsSync(TREE_SITTER_WASM_GO_FILENAME)) {
-    return
+    return;
   }
-  fsExtra.ensureDirSync(path.dirname(TREE_SITTER_WASM_GO_FILENAME))
+  fsExtra.ensureDirSync(path.dirname(TREE_SITTER_WASM_GO_FILENAME));
   return new Promise((rsl, rej) => {
     nodeHttps.get(
       'https://tree-sitter.github.io/tree-sitter-go.wasm',
       (resp) => {
         resp.on('end', () => {
-          console.log('saved', TREE_SITTER_WASM_GO_FILENAME)
-          rsl()
-        })
-        resp.on('error', rej)
-        resp.pipe(nodeFs.createWriteStream(TREE_SITTER_WASM_GO_FILENAME))
+          console.log('saved', TREE_SITTER_WASM_GO_FILENAME);
+          rsl();
+        });
+        resp.on('error', rej);
+        resp.pipe(nodeFs.createWriteStream(TREE_SITTER_WASM_GO_FILENAME));
       },
-    )
-  })
+    );
+  });
 }

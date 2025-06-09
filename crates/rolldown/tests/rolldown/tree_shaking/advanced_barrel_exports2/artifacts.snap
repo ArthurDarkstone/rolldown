@@ -1,19 +1,22 @@
 ---
 source: crates/rolldown_testing/src/integration_test.rs
+snapshot_kind: text
 ---
 # Assets
 
-## main.mjs
+## main.js
 
 ```js
-import { default as assert } from "node:assert";
+import assert from "node:assert";
 
 //#region a.js
 const b = 500;
+const a = 100;
 
 //#endregion
 //#region main.js
 assert.equal(b, 500);
+assert.equal(a, 100);
 
 //#endregion
 ```

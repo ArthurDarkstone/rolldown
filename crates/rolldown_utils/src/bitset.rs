@@ -7,7 +7,7 @@ pub struct BitSet {
 
 impl BitSet {
   pub fn new(max_bit_count: u32) -> Self {
-    Self { entries: vec![0; ((max_bit_count + 7) / 8) as usize] }
+    Self { entries: vec![0; max_bit_count.div_ceil(8) as usize] }
   }
 
   pub fn has_bit(&self, bit: u32) -> bool {
@@ -27,21 +27,37 @@ impl BitSet {
       self.entries[i] |= e;
     }
   }
+  // It is safe to convert `usize` to `u32` here because we ensure that the bitset is created with a maximum bit count that fits within `u32`.
+  #[allow(clippy::cast_possible_truncation)]
+  pub fn index_of_one(&self) -> Vec<u32> {
+    let mut result = Vec::new();
+    for (i, &e) in self.entries.iter().enumerate() {
+      for j in 0..8 {
+        if e & (1 << j) != 0 {
+          result.push((i * 8 + j) as u32);
+        }
+      }
+    }
+    result
+  }
 }
 
 impl Display for BitSet {
   fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    // using little endian representation
+    // e.g. 256
+    // 00000001_00000000
+    // ^               ^
+    // msb             lsb
     let bit_string =
-      self.entries.iter().map(|e| format!("{e:08b}")).collect::<Vec<String>>().join("_");
+      self.entries.iter().rev().map(|e| format!("{e:08b}")).collect::<Vec<String>>().join("_");
     f.write_str(&bit_string)
   }
 }
 
 impl Debug for BitSet {
   fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-    let bit_string =
-      self.entries.iter().map(|e| format!("{e:08b}")).collect::<Vec<String>>().join("_");
-    f.debug_tuple("BitSet").field(&bit_string).finish()
+    f.debug_tuple("BitSet").field(&self.to_string()).finish()
   }
 }
 
@@ -63,11 +79,11 @@ mod tests {
     bs.set_bit(0);
     bs.set_bit(1);
     bs.set_bit(7);
-    assert_eq!(bs.to_string(), "10000011_00000000");
+    assert_eq!(bs.to_string(), "00000000_10000011");
     bs.set_bit(8);
-    assert_eq!(bs.to_string(), "10000011_00000001");
+    assert_eq!(bs.to_string(), "00000001_10000011");
     bs.set_bit(15);
-    assert_eq!(bs.to_string(), "10000011_10000001");
+    assert_eq!(bs.to_string(), "10000001_10000011");
   }
 
   #[test]
@@ -78,12 +94,25 @@ mod tests {
     bs.set_bit(0);
     bs.set_bit(1);
     bs.set_bit(7);
-    assert_eq!(bs.to_string(), "10000011_00000000");
+    assert_eq!(bs.to_string(), "00000000_10000011");
     bs2.set_bit(8);
     bs2.set_bit(15);
-    assert_eq!(bs2.to_string(), "00000000_10000001");
+    assert_eq!(bs2.to_string(), "10000001_00000000");
     //
     bs.union(&bs2);
-    assert_eq!(bs.to_string(), "10000011_10000001");
+    assert_eq!(bs.to_string(), "10000001_10000011");
+  }
+
+  #[test]
+  fn index_of_one() {
+    let mut bits = BitSet::new(16);
+    bits.set_bit(1);
+    bits.set_bit(5);
+    bits.set_bit(8);
+    bits.set_bit(10);
+    bits.set_bit(13);
+    bits.set_bit(15);
+
+    assert_eq!(bits.index_of_one(), vec![1, 5, 8, 10, 13, 15]);
   }
 }

@@ -3,18 +3,15 @@ source: crates/rolldown_testing/src/integration_test.rs
 ---
 # Assets
 
-## package.mjs
+## package.js
 
 ```js
-
-
 //#region (ignored) node_modules/package/util.js
-var require_util = __commonJS({ "node_modules/package/util.js"() {} });
+var default$1 = void 0;
 
 //#endregion
 //#region node_modules/package/index.js
-var import_util = __toESM(require_util());
-console.log(import_util.default);
+console.log(default$1);
 
 //#endregion
 ```

@@ -7,9 +7,9 @@ use super::BuildEvent;
 
 #[derive(Debug)]
 pub struct Eval {
-  pub filename: String,
-  pub source: ArcStr,
   pub span: Span,
+  pub source: ArcStr,
+  pub filename: String,
 }
 
 impl BuildEvent for Eval {
@@ -17,21 +17,29 @@ impl BuildEvent for Eval {
     crate::event_kind::EventKind::Eval
   }
 
+  fn id(&self) -> Option<String> {
+    Some(self.filename.clone())
+  }
+
   fn message(&self, _opts: &DiagnosticOptions) -> String {
-    format!("Use of eval in '{}' is strongly discouraged as it poses security risks and may cause issues with minification.", self.filename)
+    format!(
+      "Use of `eval` function in '{}' is strongly discouraged as it poses security risks and may cause issues with minification.",
+      self.filename
+    )
   }
 
   fn on_diagnostic(&self, diagnostic: &mut Diagnostic, opts: &DiagnosticOptions) {
     let filename = opts.stabilize_path(&self.filename);
-
-    diagnostic.title = "Use of eval is strongly discouraged as it poses security risks and may cause issues with minification.".to_string();
-
     let file_id = diagnostic.add_file(filename, self.source.clone());
+
+    diagnostic.title = String::from(
+      "Use of `eval` function is strongly discouraged as it poses security risks and may cause issues with minification.",
+    );
 
     diagnostic.add_label(
       &file_id,
       self.span.start..self.span.end,
-      "Use `eval` function here.".to_string(),
+      String::from("Use of `eval` function here."),
     );
   }
 }

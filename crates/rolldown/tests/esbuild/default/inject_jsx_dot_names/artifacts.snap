@@ -1,23 +1,18 @@
 ---
 source: crates/rolldown_testing/src/integration_test.rs
 ---
-# warnings
-
-## UNRESOLVED_IMPORT
-
-```text
-[UNRESOLVED_IMPORT] Warning: "react/jsx-runtime" is imported by "entry.jsx", but could not be resolved – treating it as an external dependency.
-
-```
 # Assets
 
-## entry_jsx.mjs
+## entry.js
 
 ```js
-import { Fragment as _Fragment, jsx as _jsx } from "react/jsx-runtime";
+//#region inject.js
+function el() {}
+function frag() {}
 
+//#endregion
 //#region entry.jsx
-console.log(_jsx(_Fragment, { children: _jsx("div", {}) }));
+console.log(/* @__PURE__ */ el(frag, null, /* @__PURE__ */ el("div", null)));
 
 //#endregion
 ```

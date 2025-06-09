@@ -1,5 +1,7 @@
 name: Rust Test
 
+permissions: {}
+
 on:
   workflow_call:
     inputs:
@@ -16,16 +18,16 @@ jobs:
     name: Cargo Test
     runs-on: ${{ inputs.os }}
     steps:
-      - uses: actions/checkout@v4
-
-      - name: Setup Node
-        uses: ./.github/actions/setup-node
+      - uses: taiki-e/checkout-action@b13d20b7cda4e2f325ef19895128f7ff735c0b3d # v1.3.1
 
       - name: Setup Rust
-        uses: ./.github/actions/setup-rust
+        uses: oxc-project/setup-rust@cd82e1efec7fef815e2c23d296756f31c7cdc03d # v1.0.0
         with:
           tools: just
           cache-key: debug-build
+
+      - name: Setup Node
+        uses: ./.github/actions/setup-node
 
       - name: Setup Benchmark Input
         run: just setup-bench
@@ -42,4 +44,4 @@ jobs:
       - name: Check if esbuild tests diff has changed
         run: |
           just ued
-          git diff --exit-code
+          node scripts/snap-diff/check.mjs

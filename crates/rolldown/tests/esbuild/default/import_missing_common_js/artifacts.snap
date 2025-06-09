@@ -3,10 +3,9 @@ source: crates/rolldown_testing/src/integration_test.rs
 ---
 # Assets
 
-## entry_js.mjs
+## entry.js
 
 ```js
-
 
 //#region foo.js
 var require_foo = __commonJS({ "foo.js"(exports) {
@@ -16,6 +15,7 @@ var require_foo = __commonJS({ "foo.js"(exports) {
 //#endregion
 //#region entry.js
 var import_foo = __toESM(require_foo());
+console.log((0, import_foo.default)(import_foo.x, import_foo.y));
 
 //#endregion
 ```

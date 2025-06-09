@@ -3,38 +3,25 @@ source: crates/rolldown_testing/src/integration_test.rs
 ---
 # Assets
 
-## entry.cjs
+## entry.js
 
 ```js
-"use strict";
-const require_main = require('./main.cjs');
+const require_main = require('./main.js');
 
-Object.defineProperty(exports, 'default', {
-  enumerable: true,
-  get: function () {
-    return require_main.main_default;
-  }
-});
-exports.foo = require_main.foo
+exports.default = require_main.main_default;
+exports.foo = require_main.foo;
 ```
-## entry2.cjs
+## entry2.js
 
 ```js
-"use strict";
-const require_main = require('./main.cjs');
+const require_main = require('./main.js');
 
-Object.defineProperty(exports, 'default', {
-  enumerable: true,
-  get: function () {
-    return require_main.main_default;
-  }
-});
-exports.foo = require_main.foo
+exports.default = require_main.main_default;
+exports.foo = require_main.foo;
 ```
-## main.cjs
+## main.js
 
 ```js
-"use strict";
 
 //#region main.js
 const foo = "foo";
@@ -46,7 +33,8 @@ Object.defineProperty(exports, 'foo', {
   get: function () {
     return foo;
   }
-});Object.defineProperty(exports, 'main_default', {
+});
+Object.defineProperty(exports, 'main_default', {
   enumerable: true,
   get: function () {
     return main_default;

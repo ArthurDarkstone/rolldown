@@ -3,8 +3,14 @@ source: crates/rolldown_testing/src/integration_test.rs
 ---
 # Assets
 
-## entry_js.mjs
+## entry.js
 
 ```js
+//#region entry.js
+let x = function foo(foo$1) {
+	var foo$1;
+	return foo$1;
+};
 
+//#endregion
 ```

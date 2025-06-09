@@ -1,47 +1,43 @@
-use std::path::PathBuf;
+use std::sync::Arc;
 
 #[cfg(not(target_family = "wasm"))]
 use crate::worker_manager::WorkerManager;
 use crate::{
-  options::{BindingInputOptions, BindingOnLog, BindingOutputOptions},
+  options::{BindingInputOptions, BindingOutputOptions},
   parallel_js_plugin_registry::ParallelJsPluginRegistry,
-  types::{
-    binding_log::BindingLog, binding_log_level::BindingLogLevel,
-    binding_outputs::FinalBindingOutputs,
+  types::{binding_hmr_output::BindingHmrOutput, binding_outputs::BindingOutputs},
+  utils::{
+    handle_result, normalize_binding_options::normalize_binding_options,
+    try_init_custom_trace_subscriber,
   },
-  utils::{normalize_binding_options::normalize_binding_options, try_init_custom_trace_subscriber},
 };
-use napi::{tokio::sync::Mutex, Env};
+use napi::{Env, tokio::sync::Mutex};
 use napi_derive::napi;
-use rolldown::Bundler as NativeBundler;
-use rolldown_error::{BuildDiagnostic, DiagnosticOptions};
+use rolldown::{Bundler as NativeBundler, LogLevel, NormalizedBundlerOptions};
+use rolldown_error::{
+  BuildDiagnostic, BuildResult, DiagnosticOptions, filter_out_disabled_diagnostics,
+};
+
+#[napi(object, object_to_js = false)]
+pub struct BindingBundlerOptions<'env> {
+  pub input_options: BindingInputOptions<'env>,
+  pub output_options: BindingOutputOptions<'env>,
+  pub parallel_plugins_registry: Option<ParallelJsPluginRegistry>,
+}
 
 #[napi]
 pub struct Bundler {
-  inner: Mutex<NativeBundler>,
-  on_log: BindingOnLog,
-  log_level: Option<BindingLogLevel>,
-  cwd: PathBuf,
+  inner: Arc<Mutex<NativeBundler>>,
 }
 
 #[napi]
 impl Bundler {
   #[napi(constructor)]
   #[cfg_attr(target_family = "wasm", allow(unused))]
-  pub fn new(
-    env: Env,
-    mut input_options: BindingInputOptions,
-    output_options: BindingOutputOptions,
-    parallel_plugins_registry: Option<ParallelJsPluginRegistry>,
-  ) -> napi::Result<Self> {
+  pub fn new(env: Env, option: BindingBundlerOptions) -> napi::Result<Self> {
     try_init_custom_trace_subscriber(env);
 
-    let log_level = input_options.log_level.take();
-    let on_log = input_options.on_log.take();
-
-    #[cfg(target_family = "wasm")]
-    // if we don't perform this warmup, the following call to `std::fs` will stuck
-    if let Ok(_) = std::fs::metadata(std::env::current_dir()?) {};
+    let BindingBundlerOptions { input_options, output_options, parallel_plugins_registry } = option;
 
     #[cfg(not(target_family = "wasm"))]
     let worker_count =
@@ -64,28 +60,29 @@ impl Bundler {
     )?;
 
     Ok(Self {
-      cwd: ret.bundler_options.cwd.clone().unwrap_or_else(|| std::env::current_dir().unwrap()),
-      inner: Mutex::new(NativeBundler::with_plugins(ret.bundler_options, ret.plugins)),
-      log_level,
-      on_log,
+      inner: Arc::new(Mutex::new(NativeBundler::with_plugins(ret.bundler_options, ret.plugins))),
     })
+  }
+
+  pub fn new_with_bundler(inner: Arc<Mutex<NativeBundler>>) -> Self {
+    Self { inner }
   }
 
   #[napi]
   #[tracing::instrument(level = "debug", skip_all)]
-  pub async fn write(&self) -> napi::Result<FinalBindingOutputs> {
+  pub async fn write(&self) -> napi::Result<BindingOutputs> {
     self.write_impl().await
   }
 
   #[napi]
   #[tracing::instrument(level = "debug", skip_all)]
-  pub async fn generate(&self) -> napi::Result<FinalBindingOutputs> {
+  pub async fn generate(&self) -> napi::Result<BindingOutputs> {
     self.generate_impl().await
   }
 
   #[napi]
   #[tracing::instrument(level = "debug", skip_all)]
-  pub async fn scan(&self) -> napi::Result<()> {
+  pub async fn scan(&self) -> napi::Result<BindingOutputs> {
     self.scan_impl().await
   }
 
@@ -94,108 +91,154 @@ impl Bundler {
   pub async fn close(&self) -> napi::Result<()> {
     self.close_impl().await
   }
+
+  #[napi(getter)]
+  #[tracing::instrument(level = "debug", skip_all)]
+  pub fn get_closed(&self) -> napi::Result<bool> {
+    napi::bindgen_prelude::block_on(async { self.get_closed_impl().await })
+  }
+
+  #[napi]
+  #[tracing::instrument(level = "debug", skip_all)]
+  pub async fn get_watch_files(&self) -> napi::Result<Vec<String>> {
+    let bundler_core = self.inner.lock().await;
+    Ok(bundler_core.get_watch_files().iter().map(|s| s.to_string()).collect())
+  }
+
+  #[napi]
+  pub async fn generate_hmr_patch(
+    &self,
+    changed_files: Vec<String>,
+  ) -> napi::Result<BindingHmrOutput> {
+    let mut bundler_core = self.inner.lock().await;
+    let result = bundler_core.generate_hmr_patch(changed_files).await;
+    match result {
+      Ok(output) => Ok(output.into()),
+      Err(errs) => {
+        Ok(BindingHmrOutput::from_errors(errs.into_vec(), bundler_core.options().cwd.clone()))
+      }
+    }
+  }
+
+  #[napi]
+  pub async fn hmr_invalidate(
+    &self,
+    file: String,
+    first_invalidated_by: Option<String>,
+  ) -> BindingHmrOutput {
+    let mut bundler_core = self.inner.lock().await;
+    bundler_core
+      .hmr_invalidate(file, first_invalidated_by)
+      .await
+      .expect("Failed to call hmr_invalidate")
+      .into()
+  }
 }
 
 impl Bundler {
   #[allow(clippy::significant_drop_tightening)]
-  pub async fn scan_impl(&self) -> napi::Result<()> {
-    let mut bundler_core = self.inner.try_lock().map_err(|_| {
-      napi::Error::from_reason("Failed to lock the bundler. Is another operation in progress?")
-    })?;
-
-    let output = Self::handle_result(bundler_core.scan().await)?;
+  pub async fn scan_impl(&self) -> napi::Result<BindingOutputs> {
+    let mut bundler_core = self.inner.lock().await;
+    let output = Self::handle_result(bundler_core.scan(vec![]).await, bundler_core.options());
 
     match output {
       Ok(output) => {
-        self.handle_warnings(output.warnings).await;
+        self.handle_warnings(output.warnings, bundler_core.options()).await;
       }
-      Err(errs) => {
-        return Err(self.handle_errors(errs));
+      Err(outputs) => {
+        return Ok(outputs);
       }
     }
 
-    Ok(())
+    Ok(vec![].into())
   }
 
   #[allow(clippy::significant_drop_tightening)]
-  pub async fn write_impl(&self) -> napi::Result<FinalBindingOutputs> {
-    let mut bundler_core = self.inner.try_lock().map_err(|_| {
-      napi::Error::from_reason("Failed to lock the bundler. Is another operation in progress?")
-    })?;
+  pub async fn write_impl(&self) -> napi::Result<BindingOutputs> {
+    let mut bundler_core = self.inner.lock().await;
 
-    let outputs = Self::handle_result(bundler_core.write().await)?;
+    let outputs = match bundler_core.write().await {
+      Ok(outputs) => outputs,
+      Err(errs) => return Ok(Self::handle_errors(errs.into_vec(), bundler_core.options())),
+    };
 
-    if !outputs.errors.is_empty() {
-      return Err(self.handle_errors(outputs.errors));
-    }
+    self.handle_warnings(outputs.warnings, bundler_core.options()).await;
 
-    self.handle_warnings(outputs.warnings).await;
-
-    Ok(FinalBindingOutputs::new(outputs.assets))
+    Ok(outputs.assets.into())
   }
 
   #[allow(clippy::significant_drop_tightening)]
-  pub async fn generate_impl(&self) -> napi::Result<FinalBindingOutputs> {
-    let mut bundler_core = self.inner.try_lock().map_err(|_| {
-      napi::Error::from_reason("Failed to lock the bundler. Is another operation in progress?")
-    })?;
+  pub async fn generate_impl(&self) -> napi::Result<BindingOutputs> {
+    let mut bundler_core = self.inner.lock().await;
 
-    let outputs = Self::handle_result(bundler_core.generate().await)?;
+    let bundle_output = match bundler_core.generate().await {
+      Ok(output) => output,
+      Err(errs) => return Ok(Self::handle_errors(errs.into_vec(), bundler_core.options())),
+    };
 
-    if !outputs.errors.is_empty() {
-      return Err(self.handle_errors(outputs.errors));
-    }
+    self.handle_warnings(bundle_output.warnings, bundler_core.options()).await;
 
-    self.handle_warnings(outputs.warnings).await;
-
-    Ok(FinalBindingOutputs::new(outputs.assets))
+    Ok(bundle_output.assets.into())
   }
 
   #[allow(clippy::significant_drop_tightening)]
   pub async fn close_impl(&self) -> napi::Result<()> {
-    let mut bundler_core = self.inner.try_lock().map_err(|_| {
-      napi::Error::from_reason("Failed to lock the bundler. Is another operation in progress?")
-    })?;
+    let mut bundler_core = self.inner.lock().await;
 
-    Self::handle_result(bundler_core.close().await)?;
+    handle_result(bundler_core.close().await)?;
 
     Ok(())
   }
 
-  fn handle_result<T>(result: anyhow::Result<T>) -> napi::Result<T> {
-    result.map_err(|e| napi::Error::from_reason(format!("Rolldown internal error: {e}")))
+  pub fn into_inner(self) -> Arc<Mutex<NativeBundler>> {
+    self.inner
   }
 
-  fn handle_errors(&self, errs: Vec<BuildDiagnostic>) -> napi::Error {
-    errs.into_iter().for_each(|err| {
-      eprintln!(
-        "{}",
-        err.into_diagnostic_with(&DiagnosticOptions { cwd: self.cwd.clone() }).to_color_string()
-      );
-    });
-    napi::Error::from_reason("Build failed")
+  #[allow(clippy::significant_drop_tightening)]
+  pub async fn get_closed_impl(&self) -> napi::Result<bool> {
+    let bundler_core = self.inner.lock().await;
+
+    Ok(bundler_core.closed)
+  }
+
+  fn handle_errors(
+    errs: Vec<BuildDiagnostic>,
+    options: &NormalizedBundlerOptions,
+  ) -> BindingOutputs {
+    BindingOutputs::from_errors(errs, options.cwd.clone())
+  }
+
+  fn handle_result<T>(
+    result: BuildResult<T>,
+    options: &NormalizedBundlerOptions,
+  ) -> Result<T, BindingOutputs> {
+    result.map_err(|e| Self::handle_errors(e.into_vec(), options))
   }
 
   #[allow(clippy::print_stdout, unused_must_use)]
-  async fn handle_warnings(&self, warnings: Vec<BuildDiagnostic>) {
-    if let Some(log_level) = self.log_level {
-      if log_level == BindingLogLevel::Silent {
-        return;
-      }
+  async fn handle_warnings(
+    &self,
+    mut warnings: Vec<BuildDiagnostic>,
+    options: &NormalizedBundlerOptions,
+  ) {
+    if options.log_level == Some(LogLevel::Silent) {
+      return;
     }
-
-    if let Some(on_log) = self.on_log.as_ref() {
+    warnings = filter_out_disabled_diagnostics(warnings, &options.checks);
+    if let Some(on_log) = options.on_log.as_ref() {
       for warning in warnings {
         on_log
-          .call_async((
-            BindingLogLevel::Warn.to_string(),
-            BindingLog {
+          .call(
+            LogLevel::Warn,
+            rolldown::Log {
+              id: warning.id(),
+              exporter: warning.exporter(),
               code: warning.kind().to_string(),
               message: warning
-                .into_diagnostic_with(&DiagnosticOptions { cwd: self.cwd.clone() })
+                .to_diagnostic_with(&DiagnosticOptions { cwd: options.cwd.clone() })
                 .to_color_string(),
             },
-          ))
+          )
           .await;
       }
     }

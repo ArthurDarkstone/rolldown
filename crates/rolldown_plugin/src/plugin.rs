@@ -2,19 +2,17 @@ use std::{any::Any, borrow::Cow, fmt::Debug, sync::Arc};
 
 use super::plugin_context::PluginContext;
 use crate::{
-  plugin_hook_meta::PluginHookMeta,
-  transform_plugin_context::TransformPluginContext,
+  HookAddonArgs, HookBuildEndArgs, HookGenerateBundleArgs, HookLoadArgs, HookLoadOutput,
+  HookRenderChunkArgs, HookRenderChunkOutput, HookResolveIdArgs, HookResolveIdOutput,
+  HookTransformArgs, HookUsage, HookWriteBundleArgs, PluginHookMeta, SharedTransformPluginContext,
   types::{
-    hook_filter::{LoadHookFilter, ResolvedIdHookFilter, TransformHookFilter},
-    hook_render_error::HookRenderErrorArgs,
-    hook_transform_ast_args::HookTransformAstArgs,
+    hook_build_start_args::HookBuildStartArgs, hook_render_error::HookRenderErrorArgs,
+    hook_render_start_args::HookRenderStartArgs, hook_transform_ast_args::HookTransformAstArgs,
     hook_transform_output::HookTransformOutput,
   },
-  HookAddonArgs, HookBuildEndArgs, HookLoadArgs, HookLoadOutput, HookRenderChunkArgs,
-  HookRenderChunkOutput, HookResolveIdArgs, HookResolveIdOutput, HookTransformArgs,
 };
 use anyhow::Result;
-use rolldown_common::{ModuleInfo, Output, RollupRenderedChunk};
+use rolldown_common::{ModuleInfo, NormalModule, RollupRenderedChunk, WatcherChangeKind};
 use rolldown_ecmascript::EcmaAst;
 
 pub type HookResolveIdReturn = Result<Option<HookResolveIdOutput>>;
@@ -36,6 +34,7 @@ pub trait Plugin: Any + Debug + Send + Sync + 'static {
   fn build_start(
     &self,
     _ctx: &PluginContext,
+    _args: &HookBuildStartArgs<'_>,
   ) -> impl std::future::Future<Output = HookNoopReturn> + Send {
     async { Ok(()) }
   }
@@ -85,7 +84,7 @@ pub trait Plugin: Any + Debug + Send + Sync + 'static {
 
   fn transform(
     &self,
-    _ctx: &TransformPluginContext<'_>,
+    _ctx: SharedTransformPluginContext,
     _args: &HookTransformArgs<'_>,
   ) -> impl std::future::Future<Output = HookTransformReturn> + Send {
     async { Ok(None) }
@@ -99,6 +98,7 @@ pub trait Plugin: Any + Debug + Send + Sync + 'static {
     &self,
     _ctx: &PluginContext,
     _module_info: Arc<ModuleInfo>,
+    _normal_module: &NormalModule,
   ) -> impl std::future::Future<Output = HookNoopReturn> + Send {
     async { Ok(()) }
   }
@@ -124,6 +124,7 @@ pub trait Plugin: Any + Debug + Send + Sync + 'static {
   fn render_start(
     &self,
     _ctx: &PluginContext,
+    _args: &HookRenderStartArgs<'_>,
   ) -> impl std::future::Future<Output = HookNoopReturn> + Send {
     async { Ok(()) }
   }
@@ -135,7 +136,7 @@ pub trait Plugin: Any + Debug + Send + Sync + 'static {
   fn banner(
     &self,
     _ctx: &PluginContext,
-    _args: &HookAddonArgs<'_>,
+    _args: &HookAddonArgs,
   ) -> impl std::future::Future<Output = HookInjectionOutputReturn> + Send {
     async { Ok(None) }
   }
@@ -147,7 +148,7 @@ pub trait Plugin: Any + Debug + Send + Sync + 'static {
   fn footer(
     &self,
     _ctx: &PluginContext,
-    _args: &HookAddonArgs<'_>,
+    _args: &HookAddonArgs,
   ) -> impl std::future::Future<Output = HookInjectionOutputReturn> + Send {
     async { Ok(None) }
   }
@@ -159,7 +160,7 @@ pub trait Plugin: Any + Debug + Send + Sync + 'static {
   fn intro(
     &self,
     _ctx: &PluginContext,
-    _args: &HookAddonArgs<'_>,
+    _args: &HookAddonArgs,
   ) -> impl std::future::Future<Output = HookInjectionOutputReturn> + Send {
     async { Ok(None) }
   }
@@ -171,7 +172,7 @@ pub trait Plugin: Any + Debug + Send + Sync + 'static {
   fn outro(
     &self,
     _ctx: &PluginContext,
-    _args: &HookAddonArgs<'_>,
+    _args: &HookAddonArgs,
   ) -> impl std::future::Future<Output = HookInjectionOutputReturn> + Send {
     async { Ok(None) }
   }
@@ -195,7 +196,7 @@ pub trait Plugin: Any + Debug + Send + Sync + 'static {
   fn augment_chunk_hash(
     &self,
     _ctx: &PluginContext,
-    _chunk: &RollupRenderedChunk,
+    _chunk: Arc<RollupRenderedChunk>,
   ) -> impl std::future::Future<Output = HookAugmentChunkHashReturn> + Send {
     async { Ok(None) }
   }
@@ -219,8 +220,7 @@ pub trait Plugin: Any + Debug + Send + Sync + 'static {
   fn generate_bundle(
     &self,
     _ctx: &PluginContext,
-    _bundle: &mut Vec<Output>,
-    _is_write: bool,
+    _args: &mut HookGenerateBundleArgs,
   ) -> impl std::future::Future<Output = HookNoopReturn> + Send {
     async { Ok(()) }
   }
@@ -232,7 +232,7 @@ pub trait Plugin: Any + Debug + Send + Sync + 'static {
   fn write_bundle(
     &self,
     _ctx: &PluginContext,
-    _bundle: &mut Vec<Output>,
+    _args: &mut HookWriteBundleArgs,
   ) -> impl std::future::Future<Output = HookNoopReturn> + Send {
     async { Ok(()) }
   }
@@ -252,29 +252,44 @@ pub trait Plugin: Any + Debug + Send + Sync + 'static {
     None
   }
 
-  // --- experimental hooks ---
+  // watch hooks
 
+  fn watch_change(
+    &self,
+    _ctx: &PluginContext,
+    _path: &str,
+    _event: WatcherChangeKind,
+  ) -> impl std::future::Future<Output = HookNoopReturn> + Send {
+    async { Ok(()) }
+  }
+
+  fn watch_change_meta(&self) -> Option<PluginHookMeta> {
+    None
+  }
+
+  fn close_watcher(
+    &self,
+    _ctx: &PluginContext,
+  ) -> impl std::future::Future<Output = HookNoopReturn> + Send {
+    async { Ok(()) }
+  }
+
+  fn close_watcher_meta(&self) -> Option<PluginHookMeta> {
+    None
+  }
+
+  // --- experimental hooks ---
   fn transform_ast(
     &self,
     _ctx: &PluginContext,
-    args: HookTransformAstArgs,
-  ) -> HookTransformAstReturn {
-    Ok(args.ast)
+    args: HookTransformAstArgs<'_>,
+  ) -> impl std::future::Future<Output = HookTransformAstReturn> + Send {
+    async { Ok(args.ast) }
   }
 
   fn transform_ast_meta(&self) -> Option<PluginHookMeta> {
     None
   }
 
-  fn transform_filter(&self) -> anyhow::Result<Option<TransformHookFilter>> {
-    Ok(None)
-  }
-
-  fn resolve_id_filter(&self) -> anyhow::Result<Option<ResolvedIdHookFilter>> {
-    Ok(None)
-  }
-
-  fn load_filter(&self) -> anyhow::Result<Option<LoadHookFilter>> {
-    Ok(None)
-  }
+  fn register_hook_usage(&self) -> HookUsage;
 }

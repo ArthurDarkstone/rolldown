@@ -1,12 +1,7 @@
-use derivative::Derivative;
-use serde::Deserialize;
-
 use crate::types::binding_sourcemap::BindingSourcemap;
 
 #[napi_derive::napi(object)]
-#[derive(Deserialize, Default, Derivative)]
-#[serde(rename_all = "camelCase")]
-#[derivative(Debug)]
+#[derive(Default, Debug)]
 pub struct BindingHookRenderChunkOutput {
   pub code: String,
   pub map: Option<BindingSourcemap>,

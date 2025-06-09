@@ -3,24 +3,25 @@ source: crates/rolldown_testing/src/integration_test.rs
 ---
 # Assets
 
-## entry_css.css
-
-```css
-/*! <style>foo</style> */
-x { y: z }
-```
-## entry_css.mjs
+## entry.js
 
 ```js
-
-```
-## entry_js.mjs
-
-```js
-
 //#region entry.js
+//! <script>foo</script>
 let x;
 
 //#endregion
 export { x };
+```
+## entry2.css
+
+```css
+/*! <style>foo</style> */
+x { y: z }
+
+```
+## entry2.js
+
+```js
+
 ```

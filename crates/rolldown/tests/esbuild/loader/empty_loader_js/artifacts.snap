@@ -1,12 +1,13 @@
 ---
 source: crates/rolldown_testing/src/integration_test.rs
+snapshot_kind: text
 ---
 # Assets
 
-## entry_js.mjs
+## entry.js
 
 ```js
-import { default as assert } from "node:assert";
+import assert from "node:assert";
 
 //#region b.empty
 var b_exports = {};
@@ -21,10 +22,10 @@ var named = void 0;
 
 //#endregion
 //#region entry.js
-console.log(b_exports, default$1, named);
 assert.deepEqual(b_exports, {});
-assert.equal(default$1, undefined);
-assert.equal(named, undefined);
+assert.deepEqual(default$1, void 0);
+assert.equal(named, void 0);
 
 //#endregion
+//# sourceMappingURL=entry.js.map
 ```

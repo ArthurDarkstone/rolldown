@@ -1,4 +1,6 @@
-<<<<<<< HEAD
+# Reason
+1. there should not exist empty chunk
+2. import('./entry.js') should be rewrite to `require_entry`
 # Diff
 ## /out/entry.js
 ### esbuild
@@ -12,19 +14,30 @@ await 0;
 ```
 ### rolldown
 ```js
+//#region entry.js
+import("./a.js");
+import("./b.js");
+import("./c.js");
+import("./entry.js");
+await 0;
 
+//#endregion
 ```
 ### diff
 ```diff
 ===================================================================
 --- esbuild	/out/entry.js
-+++ rolldown	
-@@ -1,5 +0,0 @@
++++ rolldown	entry.js
+@@ -1,5 +1,5 @@
 -import("./a-3BAWOBN3.js");
 -import("./b-2IGVSUS7.js");
 -import("./c-DMBKURS2.js");
 -require_entry();
--await 0;
++import("./a.js");
++import("./b.js");
++import("./c.js");
++import("./entry.js");
+ await 0;
 
 ```
 ## /out/c-DMBKURS2.js

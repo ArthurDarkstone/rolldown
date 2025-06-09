@@ -3,12 +3,11 @@ source: crates/rolldown_testing/src/integration_test.rs
 ---
 # Assets
 
-## entry_js.mjs
+## entry.js
 
 ```js
-
 //#region entry.js
-class Foo {
+var Foo = class {
 	get #foo() {
 		return this.foo;
 	}
@@ -51,7 +50,7 @@ class Foo {
 		fn().#prop ||= 1;
 		fn().#prop ??= 1;
 	}
-}
+};
 
 //#endregion
 export { Foo };

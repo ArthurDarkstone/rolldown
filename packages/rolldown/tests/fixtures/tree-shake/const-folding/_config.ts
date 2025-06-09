@@ -1,11 +1,12 @@
-import type { RolldownOutputChunk } from 'rolldown'
-import { defineTest } from '@tests'
+import type { OutputChunk as RolldownOutputChunk } from 'rolldown'
+import { defineTest } from 'rolldown-tests'
 import { expect } from 'vitest'
 
 export default defineTest({
   config: {
     plugins: [
       {
+        name: 'replace NODE_ENV',
         transform: (code, id) => {
           const res = code.replace(
             'process.env.NODE_ENV',

@@ -1,23 +1,22 @@
 ---
 source: crates/rolldown_testing/src/integration_test.rs
+snapshot_kind: text
 ---
 # Assets
 
-## entry1.cjs
+## entry1.js
 
 ```js
-"use strict";
-require('./main.cjs');
+require('./main.js');
 
 ```
-## entry2.cjs
+## entry2.js
 
 ```js
-"use strict";
-require('./main.cjs');
+require('./main.js');
 
 ```
-## main.cjs
+## main.js
 
 ```js
 

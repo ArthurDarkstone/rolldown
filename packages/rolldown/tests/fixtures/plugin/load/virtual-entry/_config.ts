@@ -1,4 +1,4 @@
-import { defineTest } from '@tests'
+import { defineTest } from 'rolldown-tests'
 import path from 'node:path'
 import { expect } from 'vitest'
 
@@ -12,6 +12,7 @@ export default defineTest({
     },
     plugins: [
       {
+        name: 'virtual-entry',
         resolveId(source) {
           if (source === entryName) {
             return source

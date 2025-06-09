@@ -4,11 +4,14 @@
 //!    - If it is a namespaced name;
 //!    - If it is a valid identifier;
 //! - The `extend`: whether extends the object or not.
-use crate::types::generator::GenerateContext;
+use std::fmt::Write as _;
+
 use arcstr::ArcStr;
 use rolldown_common::OutputExports;
-use rolldown_error::{BuildDiagnostic, DiagnosableResult};
-use rolldown_utils::ecma_script::is_validate_assignee_identifier_name;
+use rolldown_error::{BuildDiagnostic, BuildResult};
+use rolldown_utils::{concat_string, ecmascript::is_validate_assignee_identifier_name};
+
+use crate::types::generator::GenerateContext;
 
 /// According to the amount of `.` in the name (levels),
 /// it generates the initialization code and the final code.
@@ -26,24 +29,27 @@ use rolldown_utils::ecma_script::is_validate_assignee_identifier_name;
 ///    ```js
 ///    this.namespace.module.hello
 ///    ```
-fn generate_namespace_definition(name: &str) -> (String, String) {
-  let mut initial_code = String::new();
-  let mut final_code = String::from("this");
-
-  let context_len = final_code.len();
+pub fn generate_namespace_definition(
+  name: &str,
+  global: &str,
+  delimiter: &str,
+) -> (String, String) {
   let parts: Vec<&str> = name.split('.').collect();
+  let mut stmts = String::new();
+  let mut namespace = String::from(global);
+  let global_len = global.len();
 
   for (i, part) in parts.iter().enumerate() {
-    let caller = generate_caller(part);
-    final_code.push_str(&caller);
+    let property = render_property_access(part);
+    namespace.push_str(&property);
 
     if i < parts.len() - 1 {
-      let callers = &final_code[context_len..];
-      initial_code.push_str(&format!("this{callers} = this{callers} || {{}};\n"));
+      let property = &namespace[global_len..];
+      write!(stmts, "{global}{property} = {global}{property} || {{}}{delimiter}").unwrap();
     }
   }
 
-  (initial_code, final_code)
+  (stmts, namespace)
 }
 
 /// This function generates a namespace definition for the given name, especially for IIFE format or UMD format.
@@ -61,16 +67,15 @@ fn generate_namespace_definition(name: &str) -> (String, String) {
 ///
 /// As for the namespaced name (including `.`), please refer to the `generate_namespace_definition` function.
 pub fn generate_identifier(
-  ctx: &mut GenerateContext<'_>,
-  export_mode: &OutputExports,
-) -> DiagnosableResult<(String, String)> {
+  warnings: &mut Vec<BuildDiagnostic>,
+  ctx: &GenerateContext<'_>,
+  export_mode: OutputExports,
+) -> BuildResult<(String, String)> {
   // Handle the diagnostic warning
-  if ctx.options.name.as_ref().map_or(true, String::is_empty)
+  if ctx.options.name.as_ref().is_none_or(String::is_empty)
     && !matches!(export_mode, OutputExports::None)
   {
-    ctx
-      .warnings
-      .push(BuildDiagnostic::missing_name_option_for_iife_export().with_severity_warning());
+    warnings.push(BuildDiagnostic::missing_name_option_for_iife_export().with_severity_warning());
   }
 
   // Early return if `name` is None
@@ -80,32 +85,28 @@ pub fn generate_identifier(
 
   // It is same as Rollup.
   if name.contains('.') {
-    let (decl, expr) = generate_namespace_definition(name);
+    let (stmts, namespace) = generate_namespace_definition(name, "this", ";\n");
     // Extend the object if the `extend` option is enabled.
     let final_expr = if ctx.options.extend && matches!(export_mode, OutputExports::Named) {
-      format!("{expr} = {expr} || {{}}")
+      format!("{namespace} = {namespace} || {{}}")
     } else {
-      expr
+      namespace
     };
 
-    return Ok((decl, final_expr));
+    return Ok((stmts, final_expr));
   }
 
   if ctx.options.extend {
-    let caller = generate_caller(name.as_str());
+    let property = render_property_access(name.as_str());
     let final_expr = if matches!(export_mode, OutputExports::Named) {
       // In named exports, the `extend` option will make the assignment disappear and
       // the modification will be done extending the existed object (the `name` option).
-      format!("this{caller} = this{caller} || {{}}")
+      format!("this{property} = this{property} || {{}}")
     } else {
       // If there isn't a name in default export, we shouldn't assign the function to `this[""]`.
       // If there is, we should assign the function to `this["name"]`,
       // because there isn't an object that we can extend.
-      if name.is_empty() {
-        String::new()
-      } else {
-        format!("this{caller}")
-      }
+      if name.is_empty() { String::new() } else { format!("this{property}") }
     };
 
     return Ok((String::new(), final_expr));
@@ -117,7 +118,7 @@ pub fn generate_identifier(
   } else {
     // This behavior is aligned with Rollup. If using `output.extend: true`, this error won't be triggered.
     let name = ArcStr::from(name);
-    Err(vec![BuildDiagnostic::illegal_identifier_as_name(name)])
+    Err(vec![BuildDiagnostic::illegal_identifier_as_name(name)].into())
   }
 }
 
@@ -125,11 +126,11 @@ pub fn generate_identifier(
 ///
 /// - If the name is not a reserved word and not an invalid identifier, it will generate a caller like `.name`.
 /// - Otherwise, it will generate a caller like `["if"]`.
-fn generate_caller(name: &str) -> String {
+pub fn render_property_access(name: &str) -> String {
   if is_validate_assignee_identifier_name(name) {
-    format!(".{name}")
+    concat_string!(".", name)
   } else {
-    format!("[\"{name}\"]")
+    concat_string!("[\"", name, "\"]")
   }
 }
 
@@ -139,14 +140,14 @@ mod tests {
 
   #[test]
   fn test_generate_namespace_definition() {
-    let result = generate_namespace_definition("a.b.c");
+    let result = generate_namespace_definition("a.b.c", "this", ";\n");
     assert_eq!(result.0, "this.a = this.a || {};\nthis.a.b = this.a.b || {};\n");
     assert_eq!(result.1, "this.a.b.c");
   }
 
   #[test]
   fn test_reserved_identifier_as_name() {
-    let result = generate_namespace_definition("1.2.3");
+    let result = generate_namespace_definition("1.2.3", "this", ";\n");
     assert_eq!(
       result.0,
       "this[\"1\"] = this[\"1\"] || {};\nthis[\"1\"][\"2\"] = this[\"1\"][\"2\"] || {};\n"
@@ -157,8 +158,11 @@ mod tests {
   #[test]
   /// It is related a bug in rollup. Check it out in [rollup/rollup#5603](https://github.com/rollup/rollup/issues/5603).
   fn test_invalid_identifier_as_name() {
-    let result = generate_namespace_definition("toString.valueOf.constructor");
-    assert_eq!(result.0, "this.toString = this.toString || {};\nthis.toString.valueOf = this.toString.valueOf || {};\n");
+    let result = generate_namespace_definition("toString.valueOf.constructor", "this", ";\n");
+    assert_eq!(
+      result.0,
+      "this.toString = this.toString || {};\nthis.toString.valueOf = this.toString.valueOf || {};\n"
+    );
     assert_eq!(result.1, "this.toString.valueOf.constructor");
   }
 }

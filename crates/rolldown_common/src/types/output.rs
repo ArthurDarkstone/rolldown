@@ -1,16 +1,16 @@
 use arcstr::ArcStr;
 
-use crate::{AssetSource, OutputChunk};
+use crate::{OutputChunk, StrOrBytes};
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct OutputAsset {
-  pub name: Option<String>,
-  pub original_file_name: Option<String>,
+  pub names: Vec<String>,
+  pub original_file_names: Vec<String>,
   pub filename: ArcStr,
-  pub source: AssetSource,
+  pub source: StrOrBytes,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum Output {
   Chunk(Box<OutputChunk>),
   Asset(Box<OutputAsset>),

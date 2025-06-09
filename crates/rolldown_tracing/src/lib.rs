@@ -1,3 +1,4 @@
+use std::any::Any;
 /// Some guidelines for tracing:
 /// - Using `RD_LOG=trace` to enable tracing or other values for more specific tracing.
 ///   - See  https://docs.rs/tracing-subscriber/latest/tracing_subscriber/filter/struct.EnvFilter.html#example-syntax for more syntax details.
@@ -7,19 +8,18 @@
 use std::sync::atomic::AtomicBool;
 
 use tracing_chrome::ChromeLayerBuilder;
-use tracing_chrome::FlushGuard;
 use tracing_chrome::TraceStyle;
+use tracing_subscriber::EnvFilter;
 use tracing_subscriber::fmt;
 use tracing_subscriber::fmt::format::FmtSpan;
 use tracing_subscriber::prelude::*;
-use tracing_subscriber::EnvFilter;
 
 static LOG_ENV_NAME: &str = "RD_LOG";
 static LOG_OUTPUT_ENV_NAME: &str = "RD_LOG_OUTPUT";
 
 static IS_INITIALIZED: AtomicBool = AtomicBool::new(false);
 
-pub fn try_init_tracing() -> Option<FlushGuard> {
+pub fn try_init_tracing() -> Option<Box<dyn Any + Send>> {
   if std::env::var(LOG_ENV_NAME).is_err() {
     // tracing will slow down the bundling process, so we only enable it when `LOG` is set.
     return None;
@@ -36,12 +36,14 @@ pub fn try_init_tracing() -> Option<FlushGuard> {
     "chrome-json" | "chrome-json-threaded" => {
       let trace_style =
         if output_mode == "chrome-json" { TraceStyle::Async } else { TraceStyle::Threaded };
-      let (chrome_layer, guard) = ChromeLayerBuilder::new().trace_style(trace_style).build();
+      let (chrome_layer, guard) =
+        ChromeLayerBuilder::new().trace_style(trace_style).include_args(true).build();
       tracing_subscriber::registry().with(env_filter).with(chrome_layer).init();
-      Some(guard)
+      Some(Box::new(guard))
     }
     "json" => {
       // We gonna use this feature to implement something like https://github.com/antfu-collective/vite-plugin-inspect
+      // See `crates/rolldown_debug`
       unimplemented!()
     }
     _ => {

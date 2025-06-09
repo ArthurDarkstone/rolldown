@@ -1,3 +1,5 @@
+# Reason
+1. rename private identifier
 # Diff
 ## /out.js
 ### esbuild
@@ -29,34 +31,63 @@ class Bar {
 ```
 ### rolldown
 ```js
+//#region entry.js
+var Foo = class {
+	#foo;
+	foo = class {
+		#foo;
+		#foo2;
+		#bar;
+	};
+	get #bar() {}
+	set #bar(x) {}
+};
+var Bar = class {
+	#foo;
+	foo = class {
+		#foo2;
+		#foo;
+		#bar;
+	};
+	get #bar() {}
+	set #bar(x) {}
+};
 
-
+//#endregion
 ```
 ### diff
 ```diff
 ===================================================================
 --- esbuild	/out.js
-+++ rolldown	entry_js.mjs
-@@ -1,20 +0,0 @@
++++ rolldown	entry.js
+@@ -1,20 +1,20 @@
 -class Foo {
--    #foo;
--    foo = class {
--        #foo2;
++var Foo = class {
+     #foo;
+     foo = class {
++        #foo;
+         #foo2;
 -        #foo22;
 -        #bar2;
--    };
--    get #bar() {}
--    set #bar(x) {}
++        #bar;
+     };
+     get #bar() {}
+     set #bar(x) {}
 -}
 -class Bar {
--    #foo;
--    foo = class {
--        #foo2;
++};
++var Bar = class {
+     #foo;
+     foo = class {
+         #foo2;
 -        #foo3;
 -        #bar2;
--    };
--    get #bar() {}
--    set #bar(x) {}
++        #foo;
++        #bar;
+     };
+     get #bar() {}
+     set #bar(x) {}
 -}
++};
 
 ```

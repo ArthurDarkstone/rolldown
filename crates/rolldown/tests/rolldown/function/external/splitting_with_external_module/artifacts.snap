@@ -3,32 +3,31 @@ source: crates/rolldown_testing/src/integration_test.rs
 ---
 # Assets
 
-## entry.mjs
+## entry.js
 
 ```js
-import { value } from "./share.mjs";
-import { default as assert } from "node:assert";
+import { value } from "./share.js";
+import assert from "node:assert";
 
 //#region entry.js
 assert.equal(value, 1);
 
 //#endregion
 ```
-## main.mjs
+## main.js
 
 ```js
-import { value } from "./share.mjs";
-import { default as assert } from "node:assert";
+import { value } from "./share.js";
+import assert from "node:assert";
 
 //#region main.js
 assert(value === 1);
 
 //#endregion
 ```
-## share.mjs
+## share.js
 
 ```js
-
 //#region share.js
 const value = 1;
 
