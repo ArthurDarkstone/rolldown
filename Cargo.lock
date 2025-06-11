@@ -2755,6 +2755,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "rolldown_plugin_dts"
+version = "0.1.0"
+dependencies = [
+ "memchr",
+ "rolldown_common",
+ "rolldown_plugin",
+ "rolldown_sourcemap",
+ "rolldown_utils",
+ "serde_json",
+]
+
+[[package]]
 name = "rolldown_plugin_dynamic_import_vars"
 version = "0.0.1"
 dependencies = [
