@@ -2758,12 +2758,16 @@ dependencies = [
 name = "rolldown_plugin_dts"
 version = "0.1.0"
 dependencies = [
- "memchr",
+ "anyhow",
+ "arcstr",
+ "itertools",
+ "oxc",
  "rolldown_common",
+ "rolldown_error",
  "rolldown_plugin",
- "rolldown_sourcemap",
  "rolldown_utils",
  "serde_json",
+ "sugar_path",
 ]
 
 [[package]]

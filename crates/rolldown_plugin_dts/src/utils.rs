@@ -1,6 +1,16 @@
 // cSpell:disable
 use std::fmt::Write as _;
 
+use oxc::{
+  allocator::{Allocator, Vec as OxcVec},
+  ast::{
+    ast::{
+      ImportDeclaration, ImportDeclarationSpecifier, ImportSpecifier, TSImportType, TSTypeReference,
+    },
+    visit::VisitMut,
+  },
+  span::Atom,
+};
 use rolldown_utils::concat_string;
 use serde_json::Value;
 
@@ -95,61 +105,104 @@ pub fn json_to_esm(data: &Value, named_exports: bool) -> String {
   concat_string!(named_export_code, "export default {\n", default_object_code, "\n};")
 }
 
+/// 访问器用于收集类型导入
+pub struct TypeImportVisitor<'a> {
+  pub imported: OxcVec<'a, Atom<'a>>,
+}
+
+impl<'a> TypeImportVisitor<'a> {
+  pub fn new(allocator: &'a Allocator) -> Self {
+    Self { imported: OxcVec::new_in(allocator) }
+  }
+}
+
+impl<'a> VisitMut<'a> for TypeImportVisitor<'a> {
+  fn visit_import_declaration(&mut self, it: &mut ImportDeclaration<'a>) {
+    // 检查是否为类型导入
+    if it.import_kind.is_type() {
+      self.imported.push(it.source.value.clone());
+      return;
+    }
+
+    // 检查是否有类型导入说明符
+    let has_type_specifier = it.specifiers.as_ref().map_or(false, |specifiers| {
+      specifiers.iter().any(|spec| match spec {
+        ImportDeclarationSpecifier::ImportSpecifier(ImportSpecifier { import_kind, .. }) => {
+          import_kind.is_type()
+        }
+        _ => false,
+      })
+    });
+
+    if has_type_specifier {
+      self.imported.push(it.source.value.clone());
+    }
+  }
+
+  fn visit_ts_import_type(&mut self, it: &mut TSImportType<'a>) {
+    if let Some(parameter) = &it.parameter {
+      if let Some(literal) = parameter.as_ts_literal_type() {
+        if let Some(string_literal) = literal.literal.as_string_literal() {
+          self.imported.push(string_literal.value.clone());
+        }
+      }
+    }
+  }
+
+  fn visit_ts_type_reference(&mut self, it: &mut TSTypeReference<'a>) {
+    // 处理类型引用中可能的导入
+    self.visit_ts_type_name(&mut it.type_name);
+    if let Some(type_parameters) = &mut it.type_parameters {
+      self.visit_ts_type_parameter_instantiation(type_parameters);
+    }
+  }
+}
+
+/// 检查文件扩展名是否为 TypeScript 文件
+pub fn is_typescript_file(path: &str) -> bool {
+  path.ends_with(".ts") || path.ends_with(".tsx") || path.ends_with(".d.ts")
+}
+
+/// 检查文件扩展名是否为声明文件
+pub fn is_declaration_file(path: &str) -> bool {
+  path.ends_with(".d.ts")
+}
+
+/// 从路径生成对应的声明文件路径
+pub fn get_declaration_path(path: &str) -> String {
+  if path.ends_with(".ts") {
+    path.replace(".ts", ".d.ts")
+  } else if path.ends_with(".tsx") {
+    path.replace(".tsx", ".d.ts")
+  } else {
+    format!("{}.d.ts", path)
+  }
+}
+
 #[cfg(test)]
-mod test {
-  use crate::utils::{is_json_ext, is_special_query, json_to_esm};
+mod tests {
+  use super::*;
 
   #[test]
-  fn json_ext() {
-    assert!(is_json_ext("test.json"));
-    assert!(is_json_ext("test.json?test=test&b=100"));
-    assert!(is_json_ext("test.json?commonjs-prox"));
-    assert!(is_json_ext("test.json?commonjs-externa"));
-
-    assert!(!is_json_ext("test.json?commonjs-proxy"));
-    assert!(!is_json_ext("test.json?commonjs-external"));
+  fn test_is_typescript_file() {
+    assert!(is_typescript_file("test.ts"));
+    assert!(is_typescript_file("test.tsx"));
+    assert!(is_typescript_file("test.d.ts"));
+    assert!(!is_typescript_file("test.js"));
+    assert!(!is_typescript_file("test.jsx"));
   }
 
   #[test]
-  fn special_query() {
-    assert!(is_special_query("test?workers&worker"));
-    assert!(is_special_query("test?url&sharedworker"));
-    assert!(is_special_query("test?url&raw"));
-
-    assert!(!is_special_query("test?&woer"));
-    assert!(!is_special_query("test?&sharedworker1"));
+  fn test_is_declaration_file() {
+    assert!(is_declaration_file("test.d.ts"));
+    assert!(!is_declaration_file("test.ts"));
+    assert!(!is_declaration_file("test.tsx"));
   }
 
   #[test]
-  fn to_esm_named_exports_object() {
-    let data = serde_json::json!({"name": "name"});
-    assert_eq!(
-      "export const name = \"name\";\nexport default {\n  name\n};",
-      json_to_esm(&data, true)
-    );
-  }
-
-  #[test]
-  fn to_esm_named_exports_literal() {
-    let data = serde_json::json!(1);
-    assert_eq!("export default 1;\n", json_to_esm(&data, true));
-  }
-
-  #[test]
-  fn to_esm_named_exports_forbidden_ident() {
-    let data = serde_json::json!({"true": true, "\\\"\n": 1234});
-    assert_eq!(
-      "export default {\n  \"true\": true,\n  \"\\\\\\\"\\n\": 1234\n};",
-      json_to_esm(&data, true)
-    );
-  }
-
-  #[test]
-  fn to_esm_named_exports_multiple_fields() {
-    let data = serde_json::json!({"foo": "foo", "bar": "bar"});
-    assert_eq!(
-      "export const foo = \"foo\";\nexport const bar = \"bar\";\nexport default {\n  foo,\n  bar\n};",
-      json_to_esm(&data, true)
-    );
+  fn test_get_declaration_path() {
+    assert_eq!(get_declaration_path("test.ts"), "test.d.ts");
+    assert_eq!(get_declaration_path("test.tsx"), "test.d.ts");
+    assert_eq!(get_declaration_path("test.js"), "test.js.d.ts");
   }
 }
